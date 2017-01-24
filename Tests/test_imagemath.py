@@ -1,3 +1,4 @@
+from __future__ import print_function
 from helper import unittest, PillowTestCase
 
 from PIL import Image
@@ -8,7 +9,7 @@ def pixel(im):
     if hasattr(im, "im"):
         return "%s %r" % (im.mode, im.getpixel((0, 0)))
     else:
-        if isinstance(im, type(0)):
+        if isinstance(im, int):
             return int(im)  # hack to deal with booleans
         print(im)
 
@@ -184,5 +185,3 @@ class TestImageMath(PillowTestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
-# End of file

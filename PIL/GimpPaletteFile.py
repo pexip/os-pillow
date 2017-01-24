@@ -21,7 +21,7 @@ from PIL._binary import o8
 ##
 # File handler for GIMP's palette format.
 
-class GimpPaletteFile:
+class GimpPaletteFile(object):
 
     rawmode = "RGB"
 
@@ -41,7 +41,7 @@ class GimpPaletteFile:
             if not s:
                 break
             # skip fields and comment lines
-            if re.match(b"\w+:|#", s):
+            if re.match(br"\w+:|#", s):
                 continue
             if len(s) > 100:
                 raise SyntaxError("bad palette file")

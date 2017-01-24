@@ -26,6 +26,10 @@ Reference
    ImageTk
    ImageWin
    ExifTags
-   OleFileIO
+   TiffTags
    PSDraw
+   PixelAccess
+   PyAccess
    ../PIL
+   plugins
+   internal_design

@@ -3,16 +3,12 @@ Pillow Tests
 
 Test scripts are named ``test_xxx.py`` and use the ``unittest`` module. A base class and helper functions can be found in ``helper.py``.
 
-Depedencies
+Dependencies
 -----------
 
 Install::
 
     pip install coverage nose
-
-If you're using Python 2.6, there's one additional dependency::
-  
-    pip install unittest2
 
 Execution
 ---------

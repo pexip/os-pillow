@@ -52,7 +52,7 @@ typedef struct {
     struct ImagingCodecStateInstance state;
     Imaging im;
     PyObject* lock;
-    int     handles_eof;
+    int pulls_fd;
 } ImagingDecoderObject;
 
 static PyTypeObject ImagingDecoderType;
@@ -94,8 +94,9 @@ PyImaging_DecoderNew(int contextsize)
     /* Initialize the cleanup function pointer */
     decoder->cleanup = NULL;
 
-    /* Most decoders don't want to handle EOF themselves */
-    decoder->handles_eof = 0;
+    /* set if the decoder needs to pull data from the fd, instead of
+       having it pushed */
+    decoder->pulls_fd = 0;
 
     return decoder;
 }
@@ -108,6 +109,7 @@ _dealloc(ImagingDecoderObject* decoder)
     free(decoder->state.buffer);
     free(decoder->state.context);
     Py_XDECREF(decoder->lock);
+    Py_XDECREF(decoder->state.fd);
     PyObject_Del(decoder);
 }
 
@@ -116,11 +118,20 @@ _decode(ImagingDecoderObject* decoder, PyObject* args)
 {
     UINT8* buffer;
     int bufsize, status;
+    ImagingSectionCookie cookie;
 
     if (!PyArg_ParseTuple(args, PY_ARG_BYTES_LENGTH, &buffer, &bufsize))
         return NULL;
 
+    if (!decoder->pulls_fd) {
+        ImagingSectionEnter(&cookie);
+    }
+
     status = decoder->decode(decoder->im, &decoder->state, buffer, bufsize);
+
+    if (!decoder->pulls_fd) {
+        ImagingSectionLeave(&cookie);
+    }
 
     return Py_BuildValue("ii", status, decoder->state.errcode);
 }
@@ -183,8 +194,13 @@ _setimage(ImagingDecoderObject* decoder, PyObject* args)
 
     /* Allocate memory buffer (if bits field is set) */
     if (state->bits > 0) {
-        if (!state->bytes)
+        if (!state->bytes) {
+            if (state->xsize > ((INT_MAX / state->bits)-7)){
+                return PyErr_NoMemory();
+            }
             state->bytes = (state->bits * state->xsize+7)/8;
+        }
+        /* malloc check ok, overflow checked above */
         state->buffer = (UINT8*) malloc(state->bytes);
         if (!state->buffer)
             return PyErr_NoMemory();
@@ -200,22 +216,42 @@ _setimage(ImagingDecoderObject* decoder, PyObject* args)
     return Py_None;
 }
 
-static PyObject *
-_get_handles_eof(ImagingDecoderObject *decoder)
+static PyObject*
+_setfd(ImagingDecoderObject* decoder, PyObject* args)
 {
-    return PyBool_FromLong(decoder->handles_eof);
+    PyObject* fd;
+    ImagingCodecState state;
+
+    if (!PyArg_ParseTuple(args, "O", &fd))
+        return NULL;
+
+    state = &decoder->state;
+
+    Py_XINCREF(fd);
+    state->fd = fd;
+
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+
+static PyObject *
+_get_pulls_fd(ImagingDecoderObject *decoder)
+{
+    return PyBool_FromLong(decoder->pulls_fd);
 }
 
 static struct PyMethodDef methods[] = {
     {"decode", (PyCFunction)_decode, 1},
     {"cleanup", (PyCFunction)_decode_cleanup, 1},
     {"setimage", (PyCFunction)_setimage, 1},
+    {"setfd", (PyCFunction)_setfd, 1},
     {NULL, NULL} /* sentinel */
 };
 
 static struct PyGetSetDef getseters[] = {
-    {"handles_eof", (getter)_get_handles_eof, NULL,
-     "True if this decoder expects to handle EOF itself.",
+   {"pulls_fd", (getter)_get_pulls_fd, NULL,
+     "True if this decoder expects to pull from self.fd itself.",
      NULL},
     {NULL, NULL, NULL, NULL, NULL} /* sentinel */
 };
@@ -313,6 +349,56 @@ PyImaging_BitDecoderNew(PyObject* self, PyObject* args)
     ((BITSTATE*)decoder->state.context)->pad  = pad;
     ((BITSTATE*)decoder->state.context)->fill = fill;
     ((BITSTATE*)decoder->state.context)->sign = sign;
+
+    return (PyObject*) decoder;
+}
+
+
+/* -------------------------------------------------------------------- */
+/* BCn: GPU block-compressed texture formats                            */
+/* -------------------------------------------------------------------- */
+
+PyObject*
+PyImaging_BcnDecoderNew(PyObject* self, PyObject* args)
+{
+    ImagingDecoderObject* decoder;
+
+    char* mode;
+    char* actual;
+    int n = 0;
+    int ystep = 1;
+    if (!PyArg_ParseTuple(args, "s|ii", &mode, &n, &ystep))
+        return NULL;
+
+    switch (n) {
+    case 1: /* BC1: 565 color, 1-bit alpha */
+    case 2: /* BC2: 565 color, 4-bit alpha */
+    case 3: /* BC3: 565 color, 2-endpoint 8-bit interpolated alpha */
+    case 5: /* BC5: 2-channel 8-bit via 2 BC3 alpha blocks */
+    case 7: /* BC7: 4-channel 8-bit via everything */
+        actual = "RGBA"; break;
+    case 4: /* BC4: 1-channel 8-bit via 1 BC3 alpha block */
+        actual = "L"; break;
+    case 6: /* BC6: 3-channel 16-bit float */
+        /* TODO: support 4-channel floating point images */
+        actual = "RGBAF"; break;
+    default:
+        PyErr_SetString(PyExc_ValueError, "block compression type unknown");
+        return NULL;
+    }
+
+    if (strcmp(mode, actual) != 0) {
+        PyErr_SetString(PyExc_ValueError, "bad image mode");
+        return NULL;
+    }
+
+    decoder = PyImaging_DecoderNew(0);
+    if (decoder == NULL)
+        return NULL;
+
+    decoder->decode = ImagingBcnDecode;
+    decoder->state.state = n;
+    decoder->state.ystep = ystep;
 
     return (PyObject*) decoder;
 }
@@ -749,7 +835,7 @@ PyImaging_JpegDecoderNew(PyObject* self, PyObject* args)
     ImagingDecoderObject* decoder;
 
     char* mode;
-    char* rawmode; /* what we wan't from the decoder */
+    char* rawmode; /* what we want from the decoder */
     char* jpegmode; /* what's in the file */
     int scale = 1;
     int draft = 0;
@@ -801,6 +887,7 @@ PyImaging_Jpeg2KDecoderNew(PyObject* self, PyObject* args)
     int layers = 0;
     int fd = -1;
     PY_LONG_LONG length = -1;
+
     if (!PyArg_ParseTuple(args, "ss|iiiL", &mode, &format,
                           &reduce, &layers, &fd, &length))
         return NULL;
@@ -818,7 +905,7 @@ PyImaging_Jpeg2KDecoderNew(PyObject* self, PyObject* args)
     if (decoder == NULL)
         return NULL;
 
-    decoder->handles_eof = 1;
+    decoder->pulls_fd = 1;
     decoder->decode = ImagingJpeg2KDecode;
     decoder->cleanup = ImagingJpeg2KDecodeCleanup;
 
@@ -833,3 +920,4 @@ PyImaging_Jpeg2KDecoderNew(PyObject* self, PyObject* args)
     return (PyObject*) decoder;
 }
 #endif /* HAVE_OPENJPEG */
+

@@ -1,5 +1,5 @@
 # Test the ImageMorphology functionality
-from helper import unittest, PillowTestCase
+from helper import unittest, PillowTestCase, hopper
 
 from PIL import Image
 from PIL import ImageMorph
@@ -25,8 +25,8 @@ class MorphTests(PillowTestCase):
         chars = '.1'
         width, height = im.size
         return '\n'.join(
-            [''.join([chars[im.getpixel((c, r)) > 0] for c in range(width)])
-             for r in range(height)])
+            ''.join(chars[im.getpixel((c, r)) > 0] for c in range(width))
+            for r in range(height))
 
     def string_to_img(self, image_string):
         """Turn a string image representation into a binary image"""
@@ -63,7 +63,7 @@ class MorphTests(PillowTestCase):
                 'corner', 'dilation4', 'dilation8',
                 'erosion4', 'erosion8', 'edge'):
             lb = ImageMorph.LutBuilder(op_name=op)
-            lut = lb.build_lut(self)
+            lut = lb.build_lut()
             with open('Tests/images/%s.lut' % op, 'wb') as f:
                 f.write(lut)
 
@@ -168,8 +168,14 @@ class MorphTests(PillowTestCase):
         self.assertEqual(len(coords), 4)
         self.assertEqual(tuple(coords), ((2, 2), (4, 2), (2, 4), (4, 4)))
 
+    def test_non_binary_images(self):
+        im = hopper('RGB')
+        mop = ImageMorph.MorphOp(op_name="erosion8")
+
+        self.assertRaises(Exception, lambda: mop.apply(im))
+        self.assertRaises(Exception, lambda: mop.match(im))
+        self.assertRaises(Exception, lambda: mop.get_on_pixels(im))
+
 
 if __name__ == '__main__':
     unittest.main()
-
-# End of file

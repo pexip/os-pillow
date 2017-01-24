@@ -36,7 +36,7 @@ vector data. Path objects can be passed to the methods on the
     **distance** is measured as `Manhattan distance`_ and defaults to two
     pixels.
 
-.. _Manhattan distance: http://en.wikipedia.org/wiki/Manhattan_distance
+.. _Manhattan distance: https://en.wikipedia.org/wiki/Manhattan_distance
 
 .. py:method:: PIL.ImagePath.Path.getbbox()
 
@@ -53,7 +53,7 @@ vector data. Path objects can be passed to the methods on the
     Converts the path to a Python list [(x, y), …].
 
     :param flat: By default, this function returns a list of 2-tuples
-                 [(x, y), ...].  If this argument is :keyword:`True`, it
+                 [(x, y), ...].  If this argument is `True`, it
                  returns a flat list [x, y, ...] instead.
     :return: A list of coordinates. See **flat**.
 

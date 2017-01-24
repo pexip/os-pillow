@@ -19,15 +19,18 @@
 # See the README file for information on usage and redistribution.
 #
 
-__version__ = "0.1"
-
 from PIL import Image, ImageFile, _binary
+
+__version__ = "0.1"
 
 #
 # helpers
 
 i16 = _binary.i16le
-i32 = _binary.i32le
+
+
+def _accept(prefix):
+    return prefix[:4] == b"\200\350\000\000"
 
 
 ##
@@ -40,7 +43,7 @@ class PixarImageFile(ImageFile.ImageFile):
 
     def _open(self):
 
-        # assuming a 4-byte magic label (FIXME: add "_accept" hook)
+        # assuming a 4-byte magic label
         s = self.fp.read(4)
         if s != b"\200\350\000\000":
             raise SyntaxError("not a PIXAR file")
@@ -63,7 +66,6 @@ class PixarImageFile(ImageFile.ImageFile):
 #
 # --------------------------------------------------------------------
 
-Image.register_open("PIXAR", PixarImageFile)
+Image.register_open(PixarImageFile.format, PixarImageFile, _accept)
 
-#
-# FIXME: what's the standard extension?
+Image.register_extension(PixarImageFile.format, ".pxr")

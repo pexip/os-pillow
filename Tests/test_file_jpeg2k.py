@@ -1,6 +1,6 @@
 from helper import unittest, PillowTestCase
 
-from PIL import Image
+from PIL import Image, Jpeg2KImagePlugin
 from io import BytesIO
 
 codecs = dir(Image.core)
@@ -22,22 +22,30 @@ class TestFileJpeg2k(PillowTestCase):
     def roundtrip(self, im, **options):
         out = BytesIO()
         im.save(out, "JPEG2000", **options)
-        bytes = out.tell()
+        test_bytes = out.tell()
         out.seek(0)
         im = Image.open(out)
-        im.bytes = bytes  # for testing only
+        im.bytes = test_bytes  # for testing only
         im.load()
         return im
 
     def test_sanity(self):
         # Internal version number
-        self.assertRegexpMatches(Image.core.jp2klib_version, '\d+\.\d+\.\d+$')
+        self.assertRegexpMatches(Image.core.jp2klib_version, r'\d+\.\d+\.\d+$')
 
         im = Image.open('Tests/images/test-card-lossless.jp2')
-        im.load()
+        px = im.load()
+        self.assertEqual(px[0, 0], (0, 0, 0))
         self.assertEqual(im.mode, 'RGB')
         self.assertEqual(im.size, (640, 480))
         self.assertEqual(im.format, 'JPEG2000')
+
+    def test_invalid_file(self):
+        invalid_file = "Tests/images/flower.jpg"
+
+        self.assertRaises(SyntaxError,
+                          lambda:
+                          Jpeg2KImagePlugin.Jpeg2KImageFile(invalid_file))
 
     def test_bytesio(self):
         with open('Tests/images/test-card-lossless.jp2', 'rb') as f:
@@ -163,8 +171,11 @@ class TestFileJpeg2k(PillowTestCase):
         im = self.roundtrip(jp2)
         self.assert_image_equal(im, jp2)
 
+    def test_unbound_local(self):
+        # prepatch, a malformed jp2 file could cause an UnboundLocalError
+        # exception.
+        with self.assertRaises(IOError):
+            Image.open('Tests/images/unbound_variable.jp2')
 
 if __name__ == '__main__':
     unittest.main()
-
-# End of file

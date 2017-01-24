@@ -15,13 +15,16 @@
 # See the README file for information on usage and redistribution.
 #
 
+from __future__ import print_function
+
+from PIL import Image, ImageFile, _binary
+
+import olefile
 
 __version__ = "0.1"
 
-
-from PIL import Image, ImageFile
-from PIL.OleFileIO import *
-
+i32 = _binary.i32le
+i8 = _binary.i8
 
 # we map from colour field tuples to (mode, rawmode) descriptors
 MODES = {
@@ -43,7 +46,7 @@ MODES = {
 # --------------------------------------------------------------------
 
 def _accept(prefix):
-    return prefix[:8] == MAGIC
+    return prefix[:8] == olefile.MAGIC
 
 
 ##
@@ -60,7 +63,7 @@ class FpxImageFile(ImageFile.ImageFile):
         # to be a FlashPix file
 
         try:
-            self.ole = OleFileIO(self.fp)
+            self.ole = olefile.OleFileIO(self.fp)
         except IOError:
             raise SyntaxError("not an FPX file; invalid OLE file")
 
@@ -113,7 +116,7 @@ class FpxImageFile(ImageFile.ImageFile):
             if id in prop:
                 self.jpeg[i] = prop[id]
 
-        # print len(self.jpeg), "tables loaded"
+        # print(len(self.jpeg), "tables loaded")
 
         self._open_subimage(1, self.maxid)
 
@@ -130,19 +133,19 @@ class FpxImageFile(ImageFile.ImageFile):
         fp = self.ole.openstream(stream)
 
         # skip prefix
-        p = fp.read(28)
+        fp.read(28)
 
         # header stream
         s = fp.read(36)
 
         size = i32(s, 4), i32(s, 8)
-        tilecount = i32(s, 12)
+        # tilecount = i32(s, 12)
         tilesize = i32(s, 16), i32(s, 20)
-        channels = i32(s, 24)
+        # channels = i32(s, 24)
         offset = i32(s, 28)
         length = i32(s, 32)
 
-        # print size, self.mode, self.rawmode
+        # print(size, self.mode, self.rawmode)
 
         if size != self.size:
             raise IOError("subimage mismatch")
@@ -217,11 +220,11 @@ class FpxImageFile(ImageFile.ImageFile):
             self.fp = self.ole.openstream(self.stream[:2] +
                                           ["Subimage 0000 Data"])
 
-        ImageFile.ImageFile.load(self)
+        return ImageFile.ImageFile.load(self)
 
 #
 # --------------------------------------------------------------------
 
-Image.register_open("FPX", FpxImageFile, _accept)
+Image.register_open(FpxImageFile.format, FpxImageFile, _accept)
 
-Image.register_extension("FPX", ".fpx")
+Image.register_extension(FpxImageFile.format, ".fpx")

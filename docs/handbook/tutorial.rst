@@ -184,16 +184,27 @@ Rolling an image
 
         part1 = image.crop((0, 0, delta, ysize))
         part2 = image.crop((delta, 0, xsize, ysize))
+        part1.load()
+        part2.load()
         image.paste(part2, (0, 0, xsize-delta, ysize))
         image.paste(part1, (xsize-delta, 0, xsize, ysize))
 
         return image
 
+Note that when pasting it back from the :py:meth:`~PIL.Image.Image.crop`
+operation, :py:meth:`~PIL.Image.Image.load` is called first. This is because
+cropping is a lazy operation. If :py:meth:`~PIL.Image.Image.load` was not
+called, then the crop operation would not be performed until the images were
+used in the paste commands. This would mean that ``part1`` would be cropped from
+the version of ``image`` already modified by the first paste.
+
 For more advanced tricks, the paste method can also take a transparency mask as
 an optional argument. In this mask, the value 255 indicates that the pasted
 image is opaque in that position (that is, the pasted image should be used as
 is). The value 0 means that the pasted image is completely transparent. Values
-in-between indicate different levels of transparency.
+in-between indicate different levels of transparency. For example, pasting an
+RGBA image and also using it as the mask would paste the opaque portion
+of the image but not its transparent background.
 
 The Python Imaging Library also allows you to work with the individual bands of
 an multi-band image, such as an RGB image. The split method creates a set of
@@ -245,8 +256,9 @@ Transposing an image
     out = im.transpose(Image.ROTATE_180)
     out = im.transpose(Image.ROTATE_270)
 
-There’s no difference in performance or result between ``transpose(ROTATE)``
-and corresponding :py:meth:`~PIL.Image.Image.rotate` operations.
+``transpose(ROTATE)`` operations can also be performed identically with
+:py:meth:`~PIL.Image.Image.rotate` operations, provided the `expand` flag is
+true, to provide for the same changes to the image's size.
 
 A more general form of image transformations can be carried out via the
 :py:meth:`~PIL.Image.Image.transform` method.
@@ -296,7 +308,7 @@ Point Operations
 
 The :py:meth:`~PIL.Image.Image.point` method can be used to translate the pixel
 values of an image (e.g. image contrast manipulation). In most cases, a
-function object expecting one argument can be passed to the this method. Each
+function object expecting one argument can be passed to this method. Each
 pixel is processed according to that function:
 
 Applying point transforms
@@ -397,26 +409,15 @@ Note that most drivers in the current version of the library only allow you to
 seek to the next frame (as in the above example). To rewind the file, you may
 have to reopen it.
 
-The following iterator class lets you to use the for-statement to loop over the
-sequence:
+The following class lets you use the for-statement to loop over the sequence:
 
-A sequence iterator class
-^^^^^^^^^^^^^^^^^^^^^^^^^
+Using the ImageSequence Iterator class
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ::
 
-    class ImageSequence:
-        def __init__(self, im):
-            self.im = im
-        def __getitem__(self, ix):
-            try:
-                if ix:
-                    self.im.seek(ix)
-                return self.im
-            except EOFError:
-                raise IndexError # end of sequence
-
-    for frame in ImageSequence(im):
+    from PIL import ImageSequence
+    for frame in ImageSequence.Iterator(im):
         # ...do something to frame...
 
 
@@ -445,10 +446,9 @@ Drawing Postscript
     ps.image(box, im, 75)
     ps.rectangle(box)
 
-    # draw centered title
+    # draw title
     ps.setfont("HelveticaNarrow-Bold", 36)
-    w, h, b = ps.textsize(title)
-    ps.text((4*72-w/2, 1*72-h), title)
+    ps.text((3*72, 4*72), title)
 
     ps.end_document()
 
@@ -519,8 +519,11 @@ is done by reconfiguring the image decoder.
 Reading in draft mode
 ^^^^^^^^^^^^^^^^^^^^^
 
+This is only available for JPEG and MPO files.
+
 ::
 
+    from PIL import Image
     from __future__ import print_function
     im = Image.open(file)
     print("original =", im.mode, im.size)

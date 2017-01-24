@@ -1,6 +1,7 @@
 from helper import unittest, PillowTestCase, hopper
 
 from PIL import Image
+import os
 import sys
 
 
@@ -31,6 +32,60 @@ class TestImage(PillowTestCase):
         # self.assertRaises(
         #     MemoryError, lambda: Image.new("L", (1000000, 1000000)))
 
+    def test_width_height(self):
+        im = Image.new("RGB", (1, 2))
+        self.assertEqual(im.width, 1)
+        self.assertEqual(im.height, 2)
+
+        im.size = (3, 4)
+        self.assertEqual(im.width, 3)
+        self.assertEqual(im.height, 4)
+
+    def test_invalid_image(self):
+        if str is bytes:
+            import StringIO
+            im = StringIO.StringIO('')
+        else:
+            import io
+            im = io.BytesIO(b'')
+        self.assertRaises(IOError, lambda: Image.open(im))
+
+    @unittest.skipIf(sys.version_info < (3, 4),
+                     "pathlib only available in Python 3.4 or later")
+    def test_pathlib(self):
+        from pathlib import Path
+        im = Image.open(Path("Tests/images/hopper.jpg"))
+        self.assertEqual(im.mode, "RGB")
+        self.assertEqual(im.size, (128, 128))
+
+        temp_file = self.tempfile("temp.jpg")
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
+        im.save(Path(temp_file))
+
+    def test_fp_name(self):
+        temp_file = self.tempfile("temp.jpg")
+
+        class FP(object):
+            def write(a, b):
+                pass
+        fp = FP()
+        fp.name = temp_file
+
+        im = hopper()
+        im.save(fp)
+
+    def test_tempfile(self):
+        # see #1460, pathlib support breaks tempfile.TemporaryFile on py27
+        # Will error out on save on 3.0.0
+        import tempfile
+        im = hopper()
+        fp = tempfile.TemporaryFile()
+        im.save(fp, 'JPEG')
+        fp.seek(0)
+        reloaded = Image.open(fp)
+        self.assert_image_similar(im, reloaded, 20)
+
     def test_internals(self):
 
         im = Image.new("L", (100, 100))
@@ -42,8 +97,8 @@ class TestImage(PillowTestCase):
         im.paste(0, (0, 0, 100, 100))
         self.assertFalse(im.readonly)
 
-        file = self.tempfile("temp.ppm")
-        im._dump(file)
+        test_file = self.tempfile("temp.ppm")
+        im._dump(test_file)
 
     def test_comparison_with_other_type(self):
         # Arrange
@@ -168,8 +223,6 @@ class TestImage(PillowTestCase):
             ValueError,
             lambda: Image.effect_mandelbrot(size, extent, quality))
 
-    @unittest.skipUnless(sys.platform.startswith('win32'),
-                         "Stalls on Travis CI, passes on Windows")
     def test_effect_noise(self):
         # Arrange
         size = (100, 100)
@@ -180,8 +233,8 @@ class TestImage(PillowTestCase):
 
         # Assert
         self.assertEqual(im.size, (100, 100))
-        self.assertEqual(im.getpixel((0, 0)), 60)
-        self.assertEqual(im.getpixel((0, 1)), 28)
+        self.assertEqual(im.mode, "L")
+        self.assertNotEqual(im.getpixel((0, 0)), im.getpixel((0, 1)))
 
     def test_effect_spread(self):
         # Arrange
@@ -196,7 +249,33 @@ class TestImage(PillowTestCase):
         im3 = Image.open('Tests/images/effect_spread.png')
         self.assert_image_similar(im2, im3, 110)
 
+    def test_check_size(self):
+        # Checking that the _check_size function throws value errors when we want it to.
+        with self.assertRaises(ValueError):
+            Image.new('RGB', 0)  # not a tuple
+        with self.assertRaises(ValueError):
+            Image.new('RGB', (0,))  # Tuple too short
+        with self.assertRaises(ValueError):
+            Image.new('RGB', (-1,-1))  # w,h < 0
+
+        # this should pass with 0 sized images, #2259
+        im = Image.new('L', (0, 0))
+        self.assertEqual(im.size, (0, 0))
+
+        self.assertTrue(Image.new('RGB', (1,1)))
+        # Should pass lists too
+        i = Image.new('RGB', [1,1])
+        self.assertIsInstance(i.size, tuple)
+
+    def test_storage_neg(self):
+        # Storage.c accepted negative values for xsize, ysize.  Was
+        # test_neg_ppm, but the core function for that has been
+        # removed Calling directly into core to test the error in
+        # Storage.c, rather than the size check above
+
+        with self.assertRaises(ValueError):
+            Image.core.fill('RGB', (2,-2), (0,0,0))
+
+
 if __name__ == '__main__':
     unittest.main()
-
-# End of file

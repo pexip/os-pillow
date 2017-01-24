@@ -1,32 +1,102 @@
-pillow (2.6.1-2+deb8u3) jessie-security; urgency=medium
+pillow (4.0.0-4) unstable; urgency=medium
 
-  * CVE-2016-9189 / CVE-2016-9190
+  * Build again with internal OleFileIO module.
 
- -- Moritz Muehlenhoff <jmm@debian.org>  Tue, 08 Nov 2016 00:00:53 +0100
+ -- Matthias Klose <doko@debian.org>  Tue, 24 Jan 2017 16:52:07 +0100
 
-pillow (2.6.1-2+deb8u2) jessie-security; urgency=medium
+pillow (4.0.0-3) unstable; urgency=medium
 
-  * CVE-2016-0740
-  * Add hopper.pcd to test case added for CVE-2016-2533
+  * Re-add build dependencies on python*-olefile.
 
- -- Moritz Muehlenhoff <jmm@debian.org>  Sat, 27 Feb 2016 00:20:16 +0100
+ -- Matthias Klose <doko@debian.org>  Tue, 10 Jan 2017 23:44:36 +0100
 
-pillow (2.6.1-2+deb8u1) jessie-security; urgency=high
+pillow (4.0.0-2) unstable; urgency=medium
 
-  * Non-maintainer upload.
-  * CVE-2016-0775:
-    Fix buffer overflow in FliDecode.c (Closes: #813909)
-  * CVE-2016-2533:
-    Fix buffer overflow in PcdDecode.c.
+  * Add imagingtk-int-overflow.patch. Fix integer overflow on 32 bit
+    architectures (Markus Koschany). Closes: #847812.
 
- -- Markus Koschany <apo@debian.org>  Tue, 23 Feb 2016 00:00:01 +0100
+ -- Matthias Klose <doko@debian.org>  Mon, 09 Jan 2017 23:50:08 +0100
 
-pillow (2.6.1-2) unstable; urgency=medium
+pillow (4.0.0-1) unstable; urgency=medium
 
-  * Fix potential PNG decompression DOS. Closes: #776303. CVE-2014-9601.
-  * Add a python-imaging-tk transitional package. Closes: #776483.
+  * Pillow 4.0.0 release.
 
- -- Matthias Klose <doko@debian.org>  Sun, 08 Mar 2015 12:40:13 +0100
+ -- Matthias Klose <doko@debian.org>  Thu, 05 Jan 2017 19:47:03 +0100
+
+pillow (3.4.2-1) unstable; urgency=medium
+
+  * Pillow 3.4.2 release.
+
+ -- Matthias Klose <doko@debian.org>  Wed, 02 Nov 2016 15:48:03 +0100
+
+pillow (3.3.1-1) unstable; urgency=medium
+
+  * Pillow 3.3.1 release.
+
+ -- Matthias Klose <doko@debian.org>  Wed, 31 Aug 2016 16:32:48 +0200
+
+pillow (3.3.0-1) unstable; urgency=medium
+
+  * Pillow 3.3.0 release.
+
+ -- Matthias Klose <doko@debian.org>  Thu, 11 Aug 2016 10:18:19 +0200
+
+pillow (3.2.0-2) unstable; urgency=medium
+
+  * Don't run test needing the removed icc profiles.
+
+ -- Matthias Klose <doko@debian.org>  Thu, 05 May 2016 17:42:07 +0200
+
+pillow (3.2.0-1) unstable; urgency=medium
+
+  * Pillow 3.2.0 release.
+
+ -- Matthias Klose <doko@debian.org>  Sat, 16 Apr 2016 18:01:45 +0200
+
+pillow (3.1.1-1) unstable; urgency=medium
+
+  * Pillow 3.1.1 release.
+    - CVE-2016-0740: Fix buffer overflow in TiffDecode.c. Closes: #813905.
+    - CVE-2016-0775: Fix buffer overflow in FliDecode.c. Closes: #813909.
+
+ -- Matthias Klose <doko@debian.org>  Wed, 10 Feb 2016 10:40:44 +0100
+
+pillow (3.1.0-1) unstable; urgency=medium
+
+  * Pillow 3.1.0 release.
+  * Breaks rapid-photo-downloader (<< 0.4.11). Closes: #806976.
+  * Breaks tilestache (<< 1.49.8-3). Closes: #808238.
+  * Install upstream changelog. Closes: #805694.
+
+ -- Matthias Klose <doko@debian.org>  Tue, 19 Jan 2016 17:49:58 +0100
+
+pillow (3.0.0-1) unstable; urgency=medium
+
+  * Pillow 3.0.0 release.
+
+ -- Matthias Klose <doko@debian.org>  Mon, 30 Nov 2015 08:35:40 +0100
+
+pillow (2.9.0-1) unstable; urgency=medium
+
+  * Pillow 2.9.0 release.
+  * d/rules: Don't add $DEB_HOST_MULTIARCH to SOABI for Python 3.5 since
+    it's already included there. Closes: #790085.
+
+ -- Matthias Klose <doko@debian.org>  Wed, 12 Aug 2015 02:59:31 +0200
+
+pillow (2.8.1-1) unstable; urgency=medium
+
+  * Pillow 2.8.1 release.
+
+ -- Matthias Klose <doko@debian.org>  Mon, 01 Jun 2015 19:15:59 +0200
+
+pillow (2.7.0-1) experimental; urgency=medium
+
+  * Pillow 2.7.0 release.
+  * Stop building the sane package, not built anymore from this source.
+  * Disable running the tests in debug mode for now, hangs the build.
+
+ -- Matthias Klose <doko@debian.org>  Thu, 26 Feb 2015 14:29:15 +0100
 
 pillow (2.6.1-1) unstable; urgency=medium
 

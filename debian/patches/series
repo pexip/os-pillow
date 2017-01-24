@@ -1,9 +1,5 @@
 no-lib64-hack.diff
 toplevel-setup.py
 generate-webp-file
-issue1060.diff
-CVE-2016-0775.patch
-PcdDecode.patch
-CVE-2016-0740.patch
-CVE-2016-9189.patch
-CVE-2016-9190.patch
+imagingtk-int-overflow.patch
+olefile.diff

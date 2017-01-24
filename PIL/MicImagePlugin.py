@@ -17,11 +17,11 @@
 #
 
 
-__version__ = "0.1"
-
-
 from PIL import Image, TiffImagePlugin
-from PIL.OleFileIO import *
+
+import olefile
+
+__version__ = "0.1"
 
 
 #
@@ -29,7 +29,7 @@ from PIL.OleFileIO import *
 
 
 def _accept(prefix):
-    return prefix[:8] == MAGIC
+    return prefix[:8] == olefile.MAGIC
 
 
 ##
@@ -46,7 +46,7 @@ class MicImageFile(TiffImagePlugin.TiffImageFile):
         # to be a Microsoft Image Composer file
 
         try:
-            self.ole = OleFileIO(self.fp)
+            self.ole = olefile.OleFileIO(self.fp)
         except IOError:
             raise SyntaxError("not an MIC file; invalid OLE file")
 
@@ -54,9 +54,9 @@ class MicImageFile(TiffImagePlugin.TiffImageFile):
         # best way to identify MIC files, but what the... ;-)
 
         self.images = []
-        for file in self.ole.listdir():
-            if file[1:] and file[0][-4:] == ".ACI" and file[1] == "Image":
-                self.images.append(file)
+        for path in self.ole.listdir():
+            if path[1:] and path[0][-4:] == ".ACI" and path[1] == "Image":
+                self.images.append(path)
 
         # if we didn't find any images, this is probably not
         # an MIC file.
@@ -70,6 +70,14 @@ class MicImageFile(TiffImagePlugin.TiffImageFile):
             self.category = Image.CONTAINER
 
         self.seek(0)
+
+    @property
+    def n_frames(self):
+        return len(self.images)
+
+    @property
+    def is_animated(self):
+        return len(self.images) > 1
 
     def seek(self, frame):
 
@@ -91,6 +99,6 @@ class MicImageFile(TiffImagePlugin.TiffImageFile):
 #
 # --------------------------------------------------------------------
 
-Image.register_open("MIC", MicImageFile, _accept)
+Image.register_open(MicImageFile.format, MicImageFile, _accept)
 
-Image.register_extension("MIC", ".mic")
+Image.register_extension(MicImageFile.format, ".mic")

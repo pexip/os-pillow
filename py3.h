@@ -1,5 +1,5 @@
 /*
-    Python3 definition file to consistently map the code to Python 2.6 or
+    Python3 definition file to consistently map the code to Python 2 or
     Python 3.
 
     PyInt and PyLong were merged into PyLong in Python 3, so all PyInt functions
@@ -19,6 +19,7 @@
 #define PyInt_FromLong              PyLong_FromLong
 #define PyInt_AS_LONG               PyLong_AS_LONG
 #define PyInt_FromSsize_t           PyLong_FromSsize_t
+#define PyInt_AsSsize_t             PyLong_AsSsize_t
 
 #else   /* PY_VERSION_HEX < 0x03000000 */
 #define PY_ARG_BYTES_LENGTH             "s#"

@@ -16,11 +16,11 @@
 # See the README file for information on usage and redistribution.
 #
 
-
-__version__ = "0.1"
+from __future__ import print_function
 
 from PIL import Image, BmpImagePlugin, _binary
 
+__version__ = "0.1"
 
 #
 # --------------------------------------------------------------------
@@ -59,14 +59,16 @@ class CurImageFile(BmpImagePlugin.BmpImageFile):
                 m = s
             elif i8(s[0]) > i8(m[0]) and i8(s[1]) > i8(m[1]):
                 m = s
-            # print "width", i8(s[0])
-            # print "height", i8(s[1])
-            # print "colors", i8(s[2])
-            # print "reserved", i8(s[3])
-            # print "hotspot x", i16(s[4:])
-            # print "hotspot y", i16(s[6:])
-            # print "bytes", i32(s[8:])
-            # print "offset", i32(s[12:])
+            # print("width", i8(s[0]))
+            # print("height", i8(s[1]))
+            # print("colors", i8(s[2]))
+            # print("reserved", i8(s[3]))
+            # print("hotspot x", i16(s[4:]))
+            # print("hotspot y", i16(s[6:]))
+            # print("bytes", i32(s[8:]))
+            # print("offset", i32(s[12:]))
+        if not m:
+            raise TypeError("No cursors were found")
 
         # load as bitmap
         self._bitmap(i32(m[12:]) + offset)
@@ -82,6 +84,6 @@ class CurImageFile(BmpImagePlugin.BmpImageFile):
 #
 # --------------------------------------------------------------------
 
-Image.register_open("CUR", CurImageFile, _accept)
+Image.register_open(CurImageFile.format, CurImageFile, _accept)
 
-Image.register_extension("CUR", ".cur")
+Image.register_extension(CurImageFile.format, ".cur")

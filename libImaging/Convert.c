@@ -117,6 +117,42 @@ l2bit(UINT8* out, const UINT8* in, int xsize)
 }
 
 static void
+lA2la(UINT8* out, const UINT8* in, int xsize)
+{
+    int x;
+    unsigned int alpha, pixel, tmp;
+    for (x = 0; x < xsize; x++, in += 4) {
+        alpha = in[3];
+        pixel = MULDIV255(in[0], alpha, tmp);
+        *out++ = (UINT8) pixel;
+        *out++ = (UINT8) pixel;
+        *out++ = (UINT8) pixel;
+        *out++ = (UINT8) alpha;
+    }
+}
+
+/* RGBa -> RGBA conversion to remove premultiplication
+   Needed for correct transforms/resizing on RGBA images */
+static void
+la2lA(UINT8* out, const UINT8* in, int xsize)
+{
+    int x;
+    unsigned int alpha, pixel;
+    for (x = 0; x < xsize; x++, in+=4) {
+        alpha = in[3];
+        if (alpha == 255 || alpha == 0) {
+            pixel = in[0];
+        } else {
+            pixel = CLIP((255 * in[0]) / alpha);
+        }
+        *out++ = (UINT8) pixel;
+        *out++ = (UINT8) pixel;
+        *out++ = (UINT8) pixel;
+        *out++ = (UINT8) alpha;
+    }
+}
+
+static void
 l2la(UINT8* out, const UINT8* in, int xsize)
 {
     int x;
@@ -258,15 +294,15 @@ rgb2hsv(UINT8* out, const UINT8* in, int xsize)
         r = in[0];
         g = in[1];
         b = in[2];
-        
-        maxc = MAX(r,MAX(g,b)); 
+
+        maxc = MAX(r,MAX(g,b));
         minc = MIN(r,MIN(g,b));
         uv = maxc;
         if (minc == maxc){
             *out++ = 0;
             *out++ = 0;
             *out++ = uv;
-        } else {              
+        } else {
             cr = (float)(maxc-minc);
             s = cr/(float)maxc;
             rc = ((float)(maxc-r))/cr;
@@ -280,7 +316,7 @@ rgb2hsv(UINT8* out, const UINT8* in, int xsize)
                 h = 4.0 + gc-rc;
             }
             // incorrect hue happens if h/6 is negative.
-            h = fmod((h/6.0 + 1.0), 1.0);  
+            h = fmod((h/6.0 + 1.0), 1.0);
 
             uh = (UINT8)CLIP((int)(h*255.0));
             us = (UINT8)CLIP((int)(s*255.0));
@@ -288,7 +324,7 @@ rgb2hsv(UINT8* out, const UINT8* in, int xsize)
             *out++ = uh;
             *out++ = us;
             *out++ = uv;
-           
+
         }
         *out++ = in[3];
     }
@@ -297,26 +333,26 @@ rgb2hsv(UINT8* out, const UINT8* in, int xsize)
 static void
 hsv2rgb(UINT8* out, const UINT8* in, int xsize)
 { // following colorsys.py
-    
+
     int p,q,t;
     UINT8 up,uq,ut;
     int i, x;
     float f, fs;
     UINT8 h,s,v;
-       
+
     for (x = 0; x < xsize; x++, in += 4) {
         h = in[0];
         s = in[1];
         v = in[2];
-        
+
         if (s==0){
             *out++ = v;
             *out++ = v;
             *out++ = v;
-        } else { 
+        } else {
             i = floor((float)h * 6.0 / 255.0); // 0 - 6
-            f = (float)h * 6.0 / 255.0 - (float)i; // 0-1 : remainder. 
-            fs = ((float)s)/255.0; 
+            f = (float)h * 6.0 / 255.0 - (float)i; // 0-1 : remainder.
+            fs = ((float)s)/255.0;
 
             p = round((float)v * (1.0-fs));
             q = round((float)v * (1.0-fs*f));
@@ -324,39 +360,39 @@ hsv2rgb(UINT8* out, const UINT8* in, int xsize)
             up = (UINT8)CLIP(p);
             uq = (UINT8)CLIP(q);
             ut = (UINT8)CLIP(t);
-                
+
             switch (i%6) {
-            case 0: 
+            case 0:
                 *out++ = v;
                 *out++ = ut;
                 *out++ = up;
                 break;
-            case 1: 
+            case 1:
                 *out++ = uq;
                 *out++ = v;
                 *out++ = up;
                 break;
-            case 2: 
+            case 2:
                 *out++ = up;
                 *out++ = v;
                 *out++ = ut;
                 break;
-            case 3: 
+            case 3:
                 *out++ = up;
                 *out++ = uq;
                 *out++ = v;
                 break;
-            case 4: 
+            case 4:
                 *out++ = ut;
                 *out++ = up;
                 *out++ = v;
                 break;
-            case 5: 
+            case 5:
                 *out++ = v;
                 *out++ = up;
                 *out++ = uq;
                 break;
-        
+
             }
         }
         *out++ = in[3];
@@ -405,7 +441,7 @@ rgba2rgb(UINT8* out, const UINT8* in, int xsize)
 }
 
 static void
-rgba2rgba(UINT8* out, const UINT8* in, int xsize)
+rgbA2rgba(UINT8* out, const UINT8* in, int xsize)
 {
     int x;
     unsigned int alpha, tmp;
@@ -418,7 +454,7 @@ rgba2rgba(UINT8* out, const UINT8* in, int xsize)
     }
 }
 
-/* RGBa -> RGBA conversion to remove premultiplication 
+/* RGBa -> RGBA conversion to remove premultiplication
    Needed for correct transforms/resizing on RGBA images */
 static void
 rgba2rgbA(UINT8* out, const UINT8* in, int xsize)
@@ -427,28 +463,27 @@ rgba2rgbA(UINT8* out, const UINT8* in, int xsize)
     unsigned int alpha;
     for (x = 0; x < xsize; x++, in+=4) {
         alpha = in[3];
-        if (alpha) {
-            *out++ = CLIP((255 * in[0]) / alpha);
-            *out++ = CLIP((255 * in[1]) / alpha);
-            *out++ = CLIP((255 * in[2]) / alpha);
-        } else {
+        if (alpha == 255 || alpha == 0) {
             *out++ = in[0];
             *out++ = in[1];
             *out++ = in[2];
+        } else {
+            *out++ = CLIP((255 * in[0]) / alpha);
+            *out++ = CLIP((255 * in[1]) / alpha);
+            *out++ = CLIP((255 * in[2]) / alpha);
         }
         *out++ = in[3];
-
     }
 }
 
 /*
- * Conversion of RGB + single transparent color to RGBA, 
- * where any pixel that matches the color will have the 
+ * Conversion of RGB + single transparent color to RGBA,
+ * where any pixel that matches the color will have the
  * alpha channel set to 0
  */
- 
+
 static void
-rgbT2rgba(UINT8* out, int xsize, int r, int g, int b) 
+rgbT2rgba(UINT8* out, int xsize, int r, int g, int b)
 {
 #ifdef WORDS_BIGENDIAN
     UINT32 trns = ((r & 0xff)<<24) | ((g & 0xff)<<16) | ((b & 0xff)<<8) | 0xff;
@@ -467,7 +502,7 @@ rgbT2rgba(UINT8* out, int xsize, int r, int g, int b)
         }
     }
 }
-    
+
 
 /* ---------------- */
 /* CMYK conversions */
@@ -765,9 +800,12 @@ static struct {
     { "L", "YCbCr", l2ycbcr },
 
     { "LA", "L", la2l },
+    { "LA", "La", lA2la },
     { "LA", "RGB", la2rgb },
     { "LA", "RGBX", la2rgb },
     { "LA", "RGBA", la2rgb },
+
+    { "La", "LA", la2lA },
 
     { "I",    "L",    i2l },
     { "I",    "F",    i2f },
@@ -795,7 +833,7 @@ static struct {
     { "RGBA", "I", rgb2i },
     { "RGBA", "F", rgb2f },
     { "RGBA", "RGB", rgba2rgb },
-    { "RGBA", "RGBa", rgba2rgba },
+    { "RGBA", "RGBa", rgbA2rgba },
     { "RGBA", "RGBX", rgb2rgba },
     { "RGBA", "CMYK", rgb2cmyk },
     { "RGBA", "YCbCr", ImagingConvertRGB2YCbCr },
@@ -863,6 +901,18 @@ p2l(UINT8* out, const UINT8* in, int xsize, const UINT8* palette)
     /* FIXME: precalculate greyscale palette? */
     for (x = 0; x < xsize; x++)
         *out++ = L(&palette[in[x]*4]) / 1000;
+}
+
+static void
+p2la(UINT8* out, const UINT8* in, int xsize, const UINT8* palette)
+{
+    int x;
+    /* FIXME: precalculate greyscale palette? */
+    for (x = 0; x < xsize; x++, out+=4) {
+        const UINT8* rgba = &palette[*in++ * 4];
+        out[0] = out[1] = out[2] = L(rgba) / 1000;
+        out[3] = rgba[3];
+    }
 }
 
 static void
@@ -967,7 +1017,7 @@ frompalette(Imaging imOut, Imaging imIn, const char *mode)
     else if (strcmp(mode, "L") == 0)
         convert = p2l;
     else if (strcmp(mode, "LA") == 0)
-        convert = (alpha) ? pa2la : p2l;
+        convert = (alpha) ? pa2la : p2la;
     else if (strcmp(mode, "I") == 0)
         convert = p2i;
     else if (strcmp(mode, "F") == 0)
@@ -998,7 +1048,7 @@ frompalette(Imaging imOut, Imaging imIn, const char *mode)
     return imOut;
 }
 
-#if defined(_MSC_VER) && (_MSC_VER == 1600)
+#if defined(_MSC_VER)
 #pragma optimize("", off)
 #endif
 static Imaging
@@ -1233,7 +1283,7 @@ tobilevel(Imaging imOut, Imaging imIn, int dither)
 
     return imOut;
 }
-#if defined(_MSC_VER) && (_MSC_VER == 1600)
+#if defined(_MSC_VER)
 #pragma optimize("", on)
 #endif
 
@@ -1333,9 +1383,9 @@ ImagingConvertTransparent(Imaging imIn, const char *mode,
     if (!imIn){
         return (Imaging) ImagingError_ModeError();
     }
-    
-    if (!((strcmp(imIn->mode, "RGB") == 0 || 
-           strcmp(imIn->mode, "L") == 0) 
+
+    if (!((strcmp(imIn->mode, "RGB") == 0 ||
+           strcmp(imIn->mode, "L") == 0)
           && strcmp(mode, "RGBA") == 0))
 #ifdef notdef
     {
@@ -1370,7 +1420,7 @@ ImagingConvertTransparent(Imaging imIn, const char *mode,
     }
     ImagingSectionLeave(&cookie);
 
-    return imOut; 
+    return imOut;
 
 }
 

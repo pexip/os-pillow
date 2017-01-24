@@ -1,32 +1,61 @@
 from helper import unittest, PillowTestCase, hopper
 
-try:
-    from PIL import ImageQt
-    from PyQt5.QtGui import QImage, qRgb, qRgba
-except:
-    try:
-        from PyQt4.QtGui import QImage, qRgb, qRgba
-    except:
-        # Will be skipped in setUp
+from PIL import ImageQt
+
+
+if ImageQt.qt_is_installed:
+    from PIL.ImageQt import qRgba
+
+    def skip_if_qt_is_not_installed(_):
+        pass
+else:
+    def skip_if_qt_is_not_installed(test_case):
+        test_case.skipTest('Qt bindings are not installed')
+
+
+class PillowQtTestCase(object):
+
+    def setUp(self):
+        skip_if_qt_is_not_installed(self)
+
+    def tearDown(self):
         pass
 
 
-class TestImageQt(PillowTestCase):
+class PillowQPixmapTestCase(PillowQtTestCase):
 
     def setUp(self):
+        PillowQtTestCase.setUp(self)
         try:
-            from PyQt5.QtGui import QImage, qRgb, qRgba
-        except:
-            try:
-                from PyQt4.QtGui import QImage, qRgb, qRgba
-            except:
-                self.skipTest('PyQt4 or 5 not installed')
+            if ImageQt.qt_version == '5':
+                from PyQt5.QtGui import QGuiApplication
+            elif ImageQt.qt_version == '4':
+                from PyQt4.QtGui import QGuiApplication
+            elif ImageQt.qt_version == 'side':
+                from PySide.QtGui import QGuiApplication
+        except ImportError:
+            self.skipTest('QGuiApplication not installed')
+
+        self.app = QGuiApplication([])
+
+    def tearDown(self):
+        PillowQtTestCase.tearDown(self)
+        self.app.quit()
+
+
+class TestImageQt(PillowQtTestCase, PillowTestCase):
 
     def test_rgb(self):
-        # from https://qt-project.org/doc/qt-4.8/qcolor.html
+        # from https://doc.qt.io/qt-4.8/qcolor.html
         # typedef QRgb
         # An ARGB quadruplet on the format #AARRGGBB,
         # equivalent to an unsigned int.
+        if ImageQt.qt_version == '5':
+            from PyQt5.QtGui import qRgb
+        elif ImageQt.qt_version == '4':
+            from PyQt4.QtGui import qRgb
+        elif ImageQt.qt_version == 'side':
+            from PySide.QtGui import qRgb
 
         self.assertEqual(qRgb(0, 0, 0), qRgba(0, 0, 0, 255))
 
@@ -49,5 +78,3 @@ class TestImageQt(PillowTestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
-# End of file
