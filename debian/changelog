@@ -1,3 +1,9 @@
+pillow (2.6.1-2+deb8u3pexip1) pexip; urgency=low
+
+  * Prepare Pexip packaging
+
+ -- John-Mark Bell <jmb@pexip.com>  Thu, 23 Mar 2017 17:10:01 +0000
+
 pillow (2.6.1-2+deb8u3) jessie-security; urgency=medium
 
   * CVE-2016-9189 / CVE-2016-9190

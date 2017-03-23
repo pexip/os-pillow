@@ -1,7 +1,8 @@
 Source: pillow
 Section: python
 Priority: optional
-Maintainer: Matthias Klose <doko@debian.org>
+Maintainer: Pexip AS <packaging@pexip.com>
+XSBC-Pexip-Original-Maintainer: Matthias Klose <doko@debian.org>
 Build-Depends: debhelper, tk-dev, dpkg-dev (>= 1.16.1~),
   dh-python,
   python2.7-dev (>= 2.7.8-4),
@@ -16,6 +17,7 @@ Build-Conflicts: python-cffi, python3-cffi
 Standards-Version: 3.9.6
 Homepage: http://python-pillow.github.io/
 XS-Testsuite: autopkgtest
+XS-Pexip-Upstream: http://ftp.debian.org/debian/ jessie
 
 Package: python-pil
 Architecture: any
