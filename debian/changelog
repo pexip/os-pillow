@@ -1,6 +1,7 @@
 pillow (2.6.1-2+deb8u3pexip1) pexip; urgency=low
 
   * Prepare Pexip packaging
+  * debian/control, debian/rules: Disable TIFF and WebP support
 
  -- John-Mark Bell <jmb@pexip.com>  Thu, 23 Mar 2017 17:10:01 +0000
 

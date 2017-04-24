@@ -11,8 +11,7 @@ Build-Depends: debhelper, tk-dev, dpkg-dev (>= 1.16.1~),
   python-tk, python-tk-dbg,
   python3-tk, python3-tk-dbg,
   python-nose, python3-nose,
-  libsane-dev, libfreetype6-dev, libjpeg-dev, zlib1g-dev, liblcms2-dev,
-  libwebp-dev
+  libsane-dev, libfreetype6-dev, libjpeg-dev, zlib1g-dev, liblcms2-dev
 Build-Conflicts: python-cffi, python3-cffi
 Standards-Version: 3.9.6
 Homepage: http://python-pillow.github.io/

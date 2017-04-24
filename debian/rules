@@ -26,10 +26,10 @@ build-stamp: $(PYVERS:%=build-stamp-python%) $(PY3VERS:%=build-stamp-python%) $(
 	touch $@
 build-stamp-python%:
 #	tar xvf debian/lcms-images.tar.gz
-	$(SET_CROSS_ENV) python$* setup.py build
+	$(SET_CROSS_ENV) python$* setup.py build_ext --disable-tiff --disable-webp --disable-webpmux
 	cd Sane && $(SET_CROSS_ENV) python$* setup.py build
 
-	$(SET_CROSS_ENV) python$*-dbg setup.py build
+	$(SET_CROSS_ENV) python$*-dbg setup.py build_ext --disable-tiff --disable-webp --disable-webpmux
 	cd Sane && $(SET_CROSS_ENV) python$*-dbg setup.py build
 	touch $@
 
