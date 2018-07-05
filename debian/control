@@ -16,7 +16,7 @@ Build-Conflicts: python-cffi, python3-cffi
 Standards-Version: 3.9.6
 Homepage: http://python-pillow.github.io/
 XS-Testsuite: autopkgtest
-XS-Pexip-Upstream: http://ftp.debian.org/debian/ jessie
+XS-Pexip-Upstream: http://ftp.debian.org/debian/ stretch
 
 Package: python-pil
 Architecture: any
