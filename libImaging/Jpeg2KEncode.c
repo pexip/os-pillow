@@ -36,6 +36,12 @@ j2k_error(const char *msg, void *client_data)
     state->error_msg = strdup(msg);
 }
 
+static void
+j2k_warn(const char *msg, void *client_data)
+{
+    // Null handler
+}
+
 /* -------------------------------------------------------------------- */
 /* Buffer output stream                                                 */
 /* -------------------------------------------------------------------- */
@@ -43,26 +49,43 @@ j2k_error(const char *msg, void *client_data)
 static OPJ_SIZE_T
 j2k_write(void *p_buffer, OPJ_SIZE_T p_nb_bytes, void *p_user_data)
 {
-    ImagingIncrementalCodec encoder = (ImagingIncrementalCodec)p_user_data;
-    size_t len = ImagingIncrementalCodecWrite(encoder, p_buffer, p_nb_bytes);
+    ImagingCodecState state = (ImagingCodecState)p_user_data;
+    int result;
 
-    return len ? len : (OPJ_SIZE_T)-1;
+    result = _imaging_write_pyFd(state->fd, p_buffer, p_nb_bytes);
+
+    return result ? result : (OPJ_SIZE_T)-1;
 }
+
 
 static OPJ_OFF_T
 j2k_skip(OPJ_OFF_T p_nb_bytes, void *p_user_data)
 {
-    ImagingIncrementalCodec encoder = (ImagingIncrementalCodec)p_user_data;
-    off_t pos = ImagingIncrementalCodecSkip(encoder, p_nb_bytes);
+    ImagingCodecState state = (ImagingCodecState)p_user_data;
+    char *buffer;
+    int result;
 
-    return pos ? pos : (OPJ_OFF_T)-1;
+    /* Explicitly write zeros */
+    buffer = calloc(p_nb_bytes,1);
+    if (!buffer) {
+        return (OPJ_OFF_T)-1;
+    }
+
+    result = _imaging_write_pyFd(state->fd, buffer, p_nb_bytes);
+
+    free(buffer);
+
+    return result ? result : p_nb_bytes;
 }
 
 static OPJ_BOOL
 j2k_seek(OPJ_OFF_T p_nb_bytes, void *p_user_data)
 {
-    ImagingIncrementalCodec encoder = (ImagingIncrementalCodec)p_user_data;
-    off_t pos = ImagingIncrementalCodecSeek(encoder, p_nb_bytes);
+    ImagingCodecState state = (ImagingCodecState)p_user_data;
+    off_t pos = 0;
+
+    _imaging_seek_pyFd(state->fd, p_nb_bytes, SEEK_SET);
+    pos = _imaging_tell_pyFd(state->fd);
 
     return pos == p_nb_bytes;
 }
@@ -244,8 +267,7 @@ j2k_set_cinema_params(Imaging im, int components, opj_cparameters_t *params)
 }
 
 static int
-j2k_encode_entry(Imaging im, ImagingCodecState state,
-                 ImagingIncrementalCodec encoder)
+j2k_encode_entry(Imaging im, ImagingCodecState state)
 {
     JPEG2KENCODESTATE *context = (JPEG2KENCODESTATE *)state->context;
     opj_stream_t *stream = NULL;
@@ -257,7 +279,7 @@ j2k_encode_entry(Imaging im, ImagingCodecState state,
     opj_image_cmptparm_t image_params[4];
     unsigned xsiz, ysiz;
     unsigned tile_width, tile_height;
-    unsigned tiles_x, tiles_y, num_tiles;
+    unsigned tiles_x, tiles_y;
     unsigned x, y, tile_ndx;
     unsigned n;
     j2k_pack_tile_t pack;
@@ -265,8 +287,9 @@ j2k_encode_entry(Imaging im, ImagingCodecState state,
 
     unsigned prec = 8;
     unsigned bpp = 8;
+    unsigned _overflow_scale_factor;
 
-    stream = opj_stream_default_create(OPJ_FALSE);
+    stream = opj_stream_create(BUFFER_SIZE, OPJ_FALSE);
 
     if (!stream) {
         state->errcode = IMAGING_CODEC_BROKEN;
@@ -280,9 +303,9 @@ j2k_encode_entry(Imaging im, ImagingCodecState state,
 
     /* OpenJPEG 2.0 doesn't have OPJ_VERSION_MAJOR */
 #ifndef OPJ_VERSION_MAJOR
-    opj_stream_set_user_data(stream, encoder);
+    opj_stream_set_user_data(stream, state);
 #else
-    opj_stream_set_user_data(stream, encoder, NULL);
+    opj_stream_set_user_data(stream, state, NULL);
 #endif
 
     /* Setup an opj_image */
@@ -303,7 +326,7 @@ j2k_encode_entry(Imaging im, ImagingCodecState state,
         prec = 16;
         bpp = 12;
     } else if (strcmp (im->mode, "LA") == 0) {
-        components = 2; 
+        components = 2;
         color_space = OPJ_CLRSPC_GRAY;
         pack = j2k_pack_la;
     } else if (strcmp (im->mode, "RGB") == 0) {
@@ -335,12 +358,17 @@ j2k_encode_entry(Imaging im, ImagingCodecState state,
     }
 
     image = opj_image_create(components, image_params, color_space);
+    if (!image) {
+        state->errcode = IMAGING_CODEC_BROKEN;
+        state->state = J2K_STATE_FAILED;
+        goto quick_exit;
+    }
 
     /* Setup compression context */
     context->error_msg = NULL;
 
     opj_set_default_encoder_parameters(&params);
-    
+
     params.image_offset_x0 = context->offset_x;
     params.image_offset_y0 = context->offset_y;
 
@@ -456,6 +484,8 @@ j2k_encode_entry(Imaging im, ImagingCodecState state,
     }
 
     opj_set_error_handler(codec, j2k_error, context);
+    opj_set_info_handler(codec, j2k_warn, context);
+    opj_set_warning_handler(codec, j2k_warn, context);
     opj_setup_encoder(codec, &params, image);
 
     /* Start encoding */
@@ -471,9 +501,24 @@ j2k_encode_entry(Imaging im, ImagingCodecState state,
     tiles_y = (im->ysize + (params.image_offset_y0 - params.cp_ty0)
                + tile_height - 1) / tile_height;
 
-    num_tiles = tiles_x * tiles_y;
-
+    /* check for integer overflow for the malloc line, checking any expression
+       that may multiply either tile_width or tile_height */
+    _overflow_scale_factor = components * prec;
+    if (( tile_width > UINT_MAX / _overflow_scale_factor ) ||
+        ( tile_height > UINT_MAX / _overflow_scale_factor ) ||
+        ( tile_width > UINT_MAX / (tile_height * _overflow_scale_factor )) ||
+        ( tile_height > UINT_MAX / (tile_width * _overflow_scale_factor ))) {
+        state->errcode = IMAGING_CODEC_BROKEN;
+        state->state = J2K_STATE_FAILED;
+        goto quick_exit;
+    }
+    /* malloc check ok, checked for overflow above */
     state->buffer = malloc (tile_width * tile_height * components * prec / 8);
+    if (!state->buffer) {
+        state->errcode = IMAGING_CODEC_BROKEN;
+        state->state = J2K_STATE_FAILED;
+        goto quick_exit;
+    }
 
     tile_ndx = 0;
     for (y = 0; y < tiles_y; ++y) {
@@ -524,7 +569,7 @@ j2k_encode_entry(Imaging im, ImagingCodecState state,
 
     state->errcode = IMAGING_CODEC_END;
     state->state = J2K_STATE_DONE;
-    ret = (int)ImagingIncrementalCodecBytesInBuffer(encoder);
+    ret = -1;
 
  quick_exit:
     if (codec)
@@ -540,32 +585,17 @@ j2k_encode_entry(Imaging im, ImagingCodecState state,
 int
 ImagingJpeg2KEncode(Imaging im, ImagingCodecState state, UINT8 *buf, int bytes)
 {
-    JPEG2KENCODESTATE *context = (JPEG2KENCODESTATE *)state->context;
-
     if (state->state == J2K_STATE_FAILED)
         return -1;
 
     if (state->state == J2K_STATE_START) {
-        int seekable = (context->format != OPJ_CODEC_J2K 
-                        ? INCREMENTAL_CODEC_SEEKABLE 
-                        : INCREMENTAL_CODEC_NOT_SEEKABLE);
-
-        context->encoder = ImagingIncrementalCodecCreate(j2k_encode_entry,
-                                                         im, state,
-                                                         INCREMENTAL_CODEC_WRITE,
-                                                         seekable,
-                                                         context->fd);
-
-        if (!context->encoder) {
-            state->errcode = IMAGING_CODEC_BROKEN;
-            state->state = J2K_STATE_FAILED;
-            return -1;
-        }
 
         state->state = J2K_STATE_ENCODING;
+
+        return j2k_encode_entry(im, state);
     }
 
-    return ImagingIncrementalCodecPushBuffer(context->encoder, buf, bytes);
+    return -1;
 }
 
 /* -------------------------------------------------------------------- */
@@ -576,19 +606,16 @@ int
 ImagingJpeg2KEncodeCleanup(ImagingCodecState state) {
     JPEG2KENCODESTATE *context = (JPEG2KENCODESTATE *)state->context;
 
-    if (context->quality_layers && context->encoder)
-        Py_DECREF(context->quality_layers);
+    if (context->quality_layers) {
+        Py_XDECREF(context->quality_layers);
+        context->quality_layers = NULL;
+    }
 
     if (context->error_msg)
         free ((void *)context->error_msg);
 
     context->error_msg = NULL;
 
-    if (context->encoder)
-        ImagingIncrementalCodecDestroy(context->encoder);
-
-    /* Prevent multiple calls to ImagingIncrementalCodecDestroy */
-    context->encoder = NULL;
 
     return -1;
 }

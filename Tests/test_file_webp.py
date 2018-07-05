@@ -4,7 +4,7 @@ from PIL import Image
 
 try:
     from PIL import _webp
-except:
+except ImportError:
     # Skip in setUp()
     pass
 
@@ -14,7 +14,7 @@ class TestFileWebp(PillowTestCase):
     def setUp(self):
         try:
             from PIL import _webp
-        except:
+        except ImportError:
             self.skipTest('WebP support not installed')
 
     def test_version(self):
@@ -72,8 +72,11 @@ class TestFileWebp(PillowTestCase):
         target = hopper("RGB")
         self.assert_image_similar(image, target, 12)
 
+    def test_write_unsupported_mode(self):
+        temp_file = self.tempfile("temp.webp")
+
+        self.assertRaises(IOError, lambda: hopper("L").save(temp_file))
+
 
 if __name__ == '__main__':
     unittest.main()
-
-# End of file

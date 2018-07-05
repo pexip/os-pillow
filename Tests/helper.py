@@ -5,11 +5,22 @@ from __future__ import print_function
 import sys
 import tempfile
 import os
+import unittest
 
-if sys.version_info[:2] <= (2, 6):
-    import unittest2 as unittest
-else:
-    import unittest
+from PIL import Image, ImageMath
+
+
+def convert_to_comparable(a, b):
+    new_a, new_b = a, b
+    if a.mode == 'P':
+        new_a = Image.new('L', a.size)
+        new_b = Image.new('L', b.size)
+        new_a.putdata(a.getdata())
+        new_b.putdata(b.getdata())
+    elif a.mode == 'I;16':
+        new_a = a.convert('I')
+        new_b = b.convert('I')
+    return new_a, new_b
 
 
 class PillowTestCase(unittest.TestCase):
@@ -43,18 +54,13 @@ class PillowTestCase(unittest.TestCase):
         else:
             print("=== orphaned temp file: %s" % path)
 
-    def assert_almost_equal(self, a, b, msg=None, eps=1e-6):
-        self.assertLess(
-            abs(a-b), eps,
-            msg or "got %r, expected %r" % (a, b))
-
     def assert_deep_equal(self, a, b, msg=None):
         try:
             self.assertEqual(
                 len(a), len(b),
                 msg or "got length %s, expected %s" % (len(a), len(b)))
             self.assertTrue(
-                all([x == y for x, y in zip(a, b)]),
+                all(x == y for x, y in zip(a, b)),
                 msg or "got %s, expected %s" % (a, b))
         except:
             self.assertEqual(a, b, msg)
@@ -89,14 +95,13 @@ class PillowTestCase(unittest.TestCase):
             a.size, b.size,
             msg or "got size %r, expected %r" % (a.size, b.size))
 
+        a, b = convert_to_comparable(a, b)
+
         diff = 0
-        try:
-            ord(b'0')
-            for abyte, bbyte in zip(a.tobytes(), b.tobytes()):
-                diff += abs(ord(abyte)-ord(bbyte))
-        except:
-            for abyte, bbyte in zip(a.tobytes(), b.tobytes()):
-                diff += abs(abyte-bbyte)
+        for ach, bch in zip(a.split(), b.split()):
+            chdiff = ImageMath.eval("abs(a - b)", a=ach, b=bch).convert('L')
+            diff += sum(i * num for i, num in enumerate(chdiff.histogram()))
+
         ave_diff = float(diff)/(a.size[0]*a.size[1])
         self.assertGreaterEqual(
             epsilon, ave_diff,
@@ -104,7 +109,7 @@ class PillowTestCase(unittest.TestCase):
             " average pixel value difference %.4f > epsilon %.4f" % (
                 ave_diff, epsilon))
 
-    def assert_warning(self, warn_class, func):
+    def assert_warning(self, warn_class, func, *args, **kwargs):
         import warnings
 
         result = None
@@ -113,7 +118,7 @@ class PillowTestCase(unittest.TestCase):
             warnings.simplefilter("always")
 
             # Hopefully trigger a warning.
-            result = func()
+            result = func(*args, **kwargs)
 
             # Verify some things.
             self.assertGreaterEqual(len(w), 1)
@@ -130,7 +135,7 @@ class PillowTestCase(unittest.TestCase):
         # Skip if platform/travis matches, and
         # PILLOW_RUN_KNOWN_BAD is not true in the environment.
         if bool(os.environ.get('PILLOW_RUN_KNOWN_BAD', False)):
-            print (os.environ.get('PILLOW_RUN_KNOWN_BAD', False))
+            print(os.environ.get('PILLOW_RUN_KNOWN_BAD', False))
             return
 
         skip = True
@@ -165,7 +170,6 @@ class PillowTestCase(unittest.TestCase):
 
 # helpers
 
-import sys
 py3 = (sys.version_info >= (3, 0))
 
 
@@ -175,31 +179,33 @@ def fromstring(data):
     return Image.open(BytesIO(data))
 
 
-def tostring(im, format, **options):
+def tostring(im, string_format, **options):
     from io import BytesIO
     out = BytesIO()
-    im.save(out, format, **options)
+    im.save(out, string_format, **options)
     return out.getvalue()
 
 
-def hopper(mode="RGB", cache={}):
+def hopper(mode=None, cache={}):
     from PIL import Image
-    im = None
-    # FIXME: Implement caching to reduce reading from disk but so an original
-    # copy is returned each time and the cached image isn't modified by tests
+    if mode is None:
+        # Always return fresh not-yet-loaded version of image.
+        # Operations on not-yet-loaded images is separate class of errors
+        # what we should catch.
+        return Image.open("Tests/images/hopper.ppm")
+    # Use caching to reduce reading from disk but so an original copy is
+    # returned each time and the cached image isn't modified by tests
     # (for fast, isolated, repeatable tests).
-    # im = cache.get(mode)
+    im = cache.get(mode)
     if im is None:
-        if mode == "RGB":
-            im = Image.open("Tests/images/hopper.ppm")
-        elif mode == "F":
+        if mode == "F":
             im = hopper("L").convert(mode)
         elif mode[:4] == "I;16":
             im = hopper("I").convert(mode)
         else:
-            im = hopper("RGB").convert(mode)
-    # cache[mode] = im
-    return im
+            im = hopper().convert(mode)
+        cache[mode] = im
+    return im.copy()
 
 
 def command_succeeds(cmd):
@@ -207,7 +213,6 @@ def command_succeeds(cmd):
     Runs the command, which must be a list of strings. Returns True if the
     command succeeds, or False if an OSError was raised by subprocess.Popen.
     """
-    import os
     import subprocess
     with open(os.devnull, 'w') as f:
         try:
@@ -234,6 +239,9 @@ def imagemagick_available():
     return IMCONVERT and command_succeeds([IMCONVERT, '-version'])
 
 
+def on_appveyor():
+    return 'APPVEYOR' in os.environ
+
 if sys.platform == 'win32':
     IMCONVERT = os.environ.get('MAGICK_HOME', '')
     if IMCONVERT:
@@ -241,4 +249,11 @@ if sys.platform == 'win32':
 else:
     IMCONVERT = 'convert'
 
-# End of file
+
+class cached_property(object):
+    def __init__(self, func):
+        self.func = func
+
+    def __get__(self, instance, cls=None):
+        result = instance.__dict__[self.func.__name__] = self.func(instance)
+        return result

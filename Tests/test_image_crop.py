@@ -52,8 +52,55 @@ class TestImageCrop(PillowTestCase):
         self.assertEqual(len(im.getdata()), 0)
         self.assertRaises(IndexError, lambda: im.getdata()[0])
 
+    def test_crop_float(self):
+        # Check cropping floats are rounded to nearest integer
+        # https://github.com/python-pillow/Pillow/issues/1744
+
+        # Arrange
+        im = Image.new("RGB", (10, 10))
+        self.assertEqual(im.size, (10, 10))
+
+        # Act
+        cropped = im.crop((0.9, 1.1, 4.2, 5.8))
+
+        # Assert
+        self.assertEqual(cropped.size, (3, 5))
+
+    def test_crop_crash(self):
+        #Image.crop crashes prepatch with an access violation
+        #apparently a use after free on windows, see
+        #https://github.com/python-pillow/Pillow/issues/1077
+        
+        test_img = 'Tests/images/bmp/g/pal8-0.bmp'
+        extents = (1,1,10,10)
+        #works prepatch
+        img = Image.open(test_img)
+        img2 = img.crop(extents)
+        img2.load()
+        
+        # fail prepatch
+        img = Image.open(test_img)
+        img = img.crop(extents)
+        img.load()
+
+    def test_crop_zero(self):
+        
+        im = Image.new('RGB', (0, 0), 'white')
+        
+        cropped = im.crop((0, 0, 0, 0))
+        self.assertEqual(cropped.size, (0, 0))
+
+        cropped = im.crop((10, 10, 20, 20))
+        self.assertEqual(cropped.size, (10, 10))
+        self.assertEqual(cropped.getdata()[0], (0, 0, 0))
+
+        im = Image.new('RGB', (0, 0))
+        
+        cropped = im.crop((10, 10, 20, 20))
+        self.assertEqual(cropped.size, (10, 10))
+        self.assertEqual(cropped.getdata()[2], (0, 0, 0))
+
+
 
 if __name__ == '__main__':
     unittest.main()
-
-# End of file

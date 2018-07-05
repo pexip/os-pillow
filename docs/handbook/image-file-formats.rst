@@ -4,7 +4,7 @@ Image file formats
 ==================
 
 The Python Imaging Library supports a wide variety of raster file formats.
-Nearly 30 different file formats can be identified and read by the library.
+Over 30 different file formats can be identified and read by the library.
 Write support is less extensive, but most common interchange and presentation
 formats are supported.
 
@@ -15,6 +15,8 @@ explicitly.
 
 Fully supported formats
 -----------------------
+
+.. contents::
 
 BMP
 ^^^
@@ -34,7 +36,11 @@ EPS
 
 PIL identifies EPS files containing image data, and can read files that contain
 embedded raster images (ImageData descriptors). If Ghostscript is available,
-other EPS files can be read as well. The EPS driver can also write EPS images.
+other EPS files can be read as well. The EPS driver can also write EPS
+images. The EPS driver can read EPS images in ``L``, ``LAB``, ``RGB`` and
+``CMYK`` mode, but Ghostscript may convert the images to ``RGB`` mode rather
+than leaving them in the original color space. The EPS driver can write images
+in ``L``, ``RGB`` and ``CMYK`` modes.
 
 If Ghostscript is available, you can call the :py:meth:`~PIL.Image.Image.load`
 method with the following parameter to affect how Ghostscript renders the EPS
@@ -54,17 +60,17 @@ GIF
 ^^^
 
 PIL reads GIF87a and GIF89a versions of the GIF file format. The library writes
-run-length encoded GIF87a files. Note that GIF files are always read as
-grayscale (``L``) or palette mode (``P``) images.
+run-length encoded files in GIF87a by default, unless GIF89a features
+are used or GIF89a is already in use.
+
+Note that GIF files are always read as grayscale (``L``)
+or palette mode (``P``) images.
 
 The :py:meth:`~PIL.Image.Image.open` method sets the following
 :py:attr:`~PIL.Image.Image.info` properties:
 
 **background**
     Default background color (a palette color index).
-
-**duration**
-    Time between frames in an animation (in milliseconds).
 
 **transparency**
     Transparency color index. This key is omitted if the image is not
@@ -73,12 +79,53 @@ The :py:meth:`~PIL.Image.Image.open` method sets the following
 **version**
     Version (either ``GIF87a`` or ``GIF89a``).
 
+**duration** 
+    May not be present. The time to display the current frame
+    of the GIF, in milliseconds.
+
+**loop**
+    May not be present. The number of times the GIF should loop.
+
 Reading sequences
 ~~~~~~~~~~~~~~~~~
 
 The GIF loader supports the :py:meth:`~file.seek` and :py:meth:`~file.tell`
-methods. You can seek to the next frame (``im.seek(im.tell() + 1``), or rewind
+methods. You can seek to the next frame (``im.seek(im.tell() + 1)``), or rewind
 the file by seeking to the first frame. Random access is not supported.
+
+``im.seek()`` raises an ``EOFError`` if you try to seek after the last frame.
+
+Saving
+~~~~~~
+
+When calling :py:meth:`~PIL.Image.Image.save`, the following options
+are available::
+
+    im.save(out, save_all=True, append_images=[im1, im2, ...])
+
+**save_all**
+    If present and true, all frames of the image will be saved. If
+    not, then only the first frame of a multiframe image will be saved.
+
+**append_images**
+    A list of images to append as additional frames. Each of the
+    images in the list can be single or multiframe images.
+
+**duration**
+    The display duration of each frame of the multiframe gif, in
+    milliseconds. Pass a single integer for a constant duration, or a
+    list or tuple to set the duration for each frame separately.
+
+**loop**
+    Integer number of times the GIF should loop.
+
+**optimize**
+    If present and true, attempt to compress the palette by
+    eliminating unused colors. This is only useful if the palette can
+    be compressed to the next smaller power of 2 elements.
+
+**palette**
+    Use the specified palette for the saved image.
 
 Reading local images
 ~~~~~~~~~~~~~~~~~~~~
@@ -97,6 +144,38 @@ attributes before loading the file::
         im.size = (x1 - x0, y1 - y0)
         im.tile = [(tag, (0, 0) + im.size, offset, extra)]
 
+ICNS
+^^^^
+
+PIL reads and (macOS only) writes macOS ``.icns`` files.  By default, the
+largest available icon is read, though you can override this by setting the
+:py:attr:`~PIL.Image.Image.size` property before calling
+:py:meth:`~PIL.Image.Image.load`.  The :py:meth:`~PIL.Image.Image.open` method
+sets the following :py:attr:`~PIL.Image.Image.info` property:
+
+**sizes**
+    A list of supported sizes found in this icon file; these are a
+    3-tuple, ``(width, height, scale)``, where ``scale`` is 2 for a retina
+    icon and 1 for a standard icon.  You *are* permitted to use this 3-tuple
+    format for the :py:attr:`~PIL.Image.Image.size` property if you set it
+    before calling :py:meth:`~PIL.Image.Image.load`; after loading, the size
+    will be reset to a 2-tuple containing pixel dimensions (so, e.g. if you
+    ask for ``(512, 512, 2)``, the final value of
+    :py:attr:`~PIL.Image.Image.size` will be ``(1024, 1024)``).
+
+ICO
+^^^
+
+ICO is used to store icons on Windows. The largest available icon is read.
+
+The :py:meth:`~PIL.Image.Image.save` method supports the following options:
+
+**sizes**
+    A list of sizes including in this ico file; these are a 2-tuple,
+    ``(width, height)``; Default to ``[(16, 16), (24, 24), (32, 32), (48, 48),
+    (64, 64), (128, 128), (255, 255)]``. Any sizes bigger than the original
+    size or 255 will be ignored.
+
 IM
 ^^
 
@@ -114,8 +193,7 @@ PIL reads JPEG, JFIF, and Adobe JPEG files containing ``L``, ``RGB``, or
 
 Using the :py:meth:`~PIL.Image.Image.draft` method, you can speed things up by
 converting ``RGB`` images to ``L``, and resize images to 1/2, 1/4 or 1/8 of
-their original size while loading them. The :py:meth:`~PIL.Image.Image.draft`
-method also configures the JPEG decoder to trade some quality for speed.
+their original size while loading them.
 
 The :py:meth:`~PIL.Image.Image.open` method may set the following
 :py:attr:`~PIL.Image.Image.info` properties if available:
@@ -125,7 +203,7 @@ The :py:meth:`~PIL.Image.Image.open` method may set the following
     not present.
 
 **jfif_version**
-    A tuple representing the jfif version, (major version, minor version). 
+    A tuple representing the jfif version, (major version, minor version).
 
 **jfif_density**
     A tuple representing the pixel density of the image, in units specified
@@ -139,8 +217,8 @@ The :py:meth:`~PIL.Image.Image.open` method may set the following
     * 2 - Pixels per Centimeter
 
 **dpi**
-    A tuple representing the reported pixel density in pixels per inch, if 
-    the file is a jfif file and the units are in inches. 
+    A tuple representing the reported pixel density in pixels per inch, if
+    the file is a jfif file and the units are in inches.
 
 **adobe**
     Adobe application marker found. If the file is not an Adobe JPEG file, this
@@ -152,11 +230,11 @@ The :py:meth:`~PIL.Image.Image.open` method may set the following
 **progression**
     Indicates that this is a progressive JPEG file.
 
-**icc-profile**
-    The ICC color profile for the image.  
+**icc_profile**
+    The ICC color profile for the image.
 
 **exif**
-    Raw EXIF data from the image. 
+    Raw EXIF data from the image.
 
 
 The :py:meth:`~PIL.Image.Image.save` method supports the following options:
@@ -168,29 +246,29 @@ The :py:meth:`~PIL.Image.Image.save` method supports the following options:
     image quality.
 
 **optimize**
-    If present, indicates that the encoder should make an extra pass over the
-    image in order to select optimal encoder settings.
+    If present and true, indicates that the encoder should make an extra pass
+    over the image in order to select optimal encoder settings.
 
 **progressive**
-    If present, indicates that this image should be stored as a progressive
-    JPEG file.
+    If present and true, indicates that this image should be stored as a
+    progressive JPEG file.
 
 **dpi**
     A tuple of integers representing the pixel density, ``(x,y)``.
 
-**icc-profile** 
-    If present, the image is stored with the provided ICC profile. If
-    this parameter is not provided, the image will be saved with no
-    profile attached. To preserve the existing profile::
+**icc_profile**
+    If present and true, the image is stored with the provided ICC profile.
+    If this parameter is not provided, the image will be saved with no profile
+    attached. To preserve the existing profile::
 
         im.save(filename, 'jpeg', icc_profile=im.info.get('icc_profile'))
 
 **exif**
-    If present, the image will be stored with the provided raw EXIF data. 
+    If present, the image will be stored with the provided raw EXIF data.
 
 **subsampling**
-    If present, sets the subsampling for the encoder. 
-    
+    If present, sets the subsampling for the encoder.
+
     * ``keep``: Only valid for JPEG files, will retain the original image setting.
     * ``4:4:4``, ``4:2:2``, ``4:1:1``: Specific sampling values
     * ``-1``: equivalent to ``keep``
@@ -206,7 +284,7 @@ The :py:meth:`~PIL.Image.Image.save` method supports the following options:
     *  a string, naming a preset, e.g. ``keep``, ``web_low``, or ``web_high``
     *  a list, tuple, or dictionary (with integer keys =
        range(len(keys))) of lists of 64 integers. There must be
-       between 2 and 4 tables. 
+       between 2 and 4 tables.
 
     .. versionadded:: 2.5.0
 
@@ -329,19 +407,50 @@ The :py:meth:`~PIL.Image.Image.open` method sets the following
     Gamma, given as a floating point number.
 
 **transparency**
-    Transparency color index. This key is omitted if the image is not a
-    transparent palette image.
+    For ``P`` images: Either the palette index for full transparent pixels,
+    or a byte string with alpha values for each palette entry.
+
+    For ``L`` and ``RGB`` images, the color that represents full transparent
+    pixels in this image.
+
+    This key is omitted if the image is not a transparent palette image.
+
+``Open`` also sets ``Image.text`` to a list of the values of the
+``tEXt``, ``zTXt``, and ``iTXt`` chunks of the PNG image. Individual
+compressed chunks are limited to a decompressed size of
+``PngImagePlugin.MAX_TEXT_CHUNK``, by default 1MB, to prevent
+decompression bombs. Additionally, the total size of all of the text
+chunks is limited to ``PngImagePlugin.MAX_TEXT_MEMORY``, defaulting to
+64MB.
 
 The :py:meth:`~PIL.Image.Image.save` method supports the following options:
 
 **optimize**
-    If present, instructs the PNG writer to make the output file as small as
-    possible. This includes extra processing in order to find optimal encoder
-    settings.
+    If present and true, instructs the PNG writer to make the output file as
+    small as possible. This includes extra processing in order to find optimal
+    encoder settings.
 
-**transparency** 
+**transparency**
     For ``P``, ``L``, and ``RGB`` images, this option controls what
     color image to mark as transparent.
+
+    For ``P`` images, this can be a either the palette index,
+    or a byte string with alpha values for each palette entry.
+
+**dpi**
+    A tuple of two numbers corresponding to the desired dpi in each direction.
+
+**pnginfo**
+    A :py:class:`PIL.PngImagePlugin.PngInfo` instance containing text tags.
+
+**compress_level**
+    ZLIB compression level, a number between 0 and 9: 1 gives best speed,
+    9 gives best compression, 0 gives no compression at all. Default is 6.
+    When ``optimize`` option is True ``compress_level`` has no effect
+    (it is set to 9 regardless of a value passed).
+
+**icc_profile**
+    The ICC Profile to include in the saved file.
 
 **bits (experimental)**
     For ``P`` images, this option controls how many bits to store. If omitted,
@@ -353,14 +462,20 @@ The :py:meth:`~PIL.Image.Image.save` method supports the following options:
 .. note::
 
     To enable PNG support, you need to build and install the ZLIB compression
-    library before building the Python Imaging Library. See the distribution
-    README for details.
+    library before building the Python Imaging Library. See the installation
+    documentation for details.
 
 PPM
 ^^^
 
 PIL reads and writes PBM, PGM and PPM files containing ``1``, ``L`` or ``RGB``
 data.
+
+SGI
+^^^
+
+Pillow reads and writes uncompressed ``L``, ``RGB``, and ``RGBA`` files.
+
 
 SPIDER
 ^^^^^^
@@ -397,9 +512,9 @@ the output format must be specified explicitly::
     im.save('newimage.spi', format='SPIDER')
 
 For more information about the SPIDER image processing package, see the
-`SPIDER home page`_ at `Wadsworth Center`_.
+`SPIDER homepage`_ at `Wadsworth Center`_.
 
-.. _SPIDER home page: http://www.wadsworth.org/spider_doc/spider/docs/master.html
+.. _SPIDER homepage: http://spider.wadsworth.org/spider_doc/spider/docs/spider.html
 .. _Wadsworth Center: http://www.wadsworth.org/
 
 TIFF
@@ -419,68 +534,115 @@ The :py:meth:`~PIL.Image.Image.open` method sets the following
 **compression**
     Compression mode.
 
+    .. versionadded:: 2.0.0
+
 **dpi**
-    Image resolution as an (xdpi, ydpi) tuple, where applicable. You can use
+    Image resolution as an ``(xdpi, ydpi)`` tuple, where applicable. You can use
     the :py:attr:`~PIL.Image.Image.tag` attribute to get more detailed
     information about the image resolution.
 
     .. versionadded:: 1.1.5
 
-In addition, the :py:attr:`~PIL.Image.Image.tag` attribute contains a
-dictionary of decoded TIFF fields. Values are stored as either strings or
-tuples. Note that only short, long and ASCII tags are correctly unpacked by
-this release.
+**resolution**
+    Image resolution as an ``(xres, yres)`` tuple, where applicable. This is a
+    measurement in whichever unit is specified by the file.
+
+    .. versionadded:: 1.1.5
+
+
+The :py:attr:`~PIL.Image.Image.tag_v2` attribute contains a dictionary
+of TIFF metadata. The keys are numerical indexes from
+:py:attr:`~PIL.TiffTags.TAGS_V2`.  Values are strings or numbers for single
+items, multiple values are returned in a tuple of values. Rational
+numbers are returned as a :py:class:`~PIL.TiffImagePlugin.IFDRational`
+object.
+
+    .. versionadded:: 3.0.0
+
+For compatibility with legacy code, the
+:py:attr:`~PIL.Image.Image.tag` attribute contains a dictionary of
+decoded TIFF fields as returned prior to version 3.0.0.  Values are
+returned as either strings or tuples of numeric values. Rational
+numbers are returned as a tuple of ``(numerator, denominator)``.
+
+    .. deprecated:: 3.0.0
+
 
 Saving Tiff Images
 ~~~~~~~~~~~~~~~~~~
 
 The :py:meth:`~PIL.Image.Image.save` method can take the following keyword arguments:
 
-**tiffinfo** 
-    A :py:class:`~PIL.TiffImagePlugin.ImageFileDirectory` object or dict
+**save_all**
+    If true, Pillow will save all frames of the image to a multiframe tiff document.
+
+    .. versionadded:: 3.4.0
+
+**tiffinfo**
+    A :py:class:`~PIL.TiffImagePlugin.ImageFileDirectory_v2` object or dict
     object containing tiff tags and values. The TIFF field type is
     autodetected for Numeric and string values, any other types
-    require using an :py:class:`~PIL.TiffImagePlugin.ImageFileDirectory`
+    require using an :py:class:`~PIL.TiffImagePlugin.ImageFileDirectory_v2`
     object and setting the type in
-    :py:attr:`~PIL.TiffImagePlugin.ImageFileDirectory.tagtype` with
+    :py:attr:`~PIL.TiffImagePlugin.ImageFileDirectory_v2.tagtype` with
     the appropriate numerical value from
     ``TiffTags.TYPES``.
- 
+
     .. versionadded:: 2.3.0
+
+    Metadata values that are of the rational type should be passed in
+    using a :py:class:`~PIL.TiffImagePlugin.IFDRational` object.
+
+    .. versionadded:: 3.1.0
+
+    For compatibility with legacy code, a
+    :py:class:`~PIL.TiffImagePlugin.ImageFileDirectory_v1` object may
+    be passed in this field. However, this is deprecated.
+
+    .. versionadded:: 3.0.0
+
+ .. note::
+
+    Only some tags are currently supported when writing using
+    libtiff. The supported list is found in
+    :py:attr:`~PIL:TiffTags.LIBTIFF_CORE`.
 
 **compression**
     A string containing the desired compression method for the
-	file. (valid only with libtiff installed) Valid compression
-	methods are: ``[None, "tiff_ccitt", "group3", "group4",
-	"tiff_jpeg", "tiff_adobe_deflate", "tiff_thunderscan",
-	"tiff_deflate", "tiff_sgilog", "tiff_sgilog24", "tiff_raw_16"]``
+    file. (valid only with libtiff installed) Valid compression
+    methods are: ``None``, ``"tiff_ccitt"``, ``"group3"``,
+    ``"group4"``, ``"tiff_jpeg"``, ``"tiff_adobe_deflate"``,
+    ``"tiff_thunderscan"``, ``"tiff_deflate"``, ``"tiff_sgilog"``,
+    ``"tiff_sgilog24"``, ``"tiff_raw_16"``
 
-These arguments to set the tiff header fields are an alternative to using the general tags available through tiffinfo.
+These arguments to set the tiff header fields are an alternative to
+using the general tags available through tiffinfo.
 
-**description** 
+**description**
 
 **software**
 
-**date time**
+**date_time**
 
 **artist**
 
 **copyright**
     Strings
 
-**resolution unit**
-    A string of "inch", "centimeter" or "cm" 
+**resolution_unit**
+    A string of "inch", "centimeter" or "cm"
 
 **resolution**
 
-**x resolution**
+**x_resolution**
 
-**y resolution**
+**y_resolution**
 
 **dpi**
-    Either a Float, Integer, or 2 tuple of (numerator,
-    denominator). Resolution implies an equal x and y resolution, dpi
-    also implies a unit of inches.
+    Either a Float, 2 tuple of (numerator, denominator) or a
+    :py:class:`~PIL.TiffImagePlugin.IFDRational`. Resolution implies
+    an equal x and y resolution, dpi also implies a unit of inches.
+
 
 WebP
 ^^^^
@@ -491,8 +653,7 @@ format are currently undocumented.
 The :py:meth:`~PIL.Image.Image.save` method supports the following options:
 
 **lossless**
-    If present, instructs the WEBP writer to use lossless
-    compression.
+    If present and true, instructs the WEBP writer to use lossless compression.
 
 **quality**
     Integer, 1-100, Defaults to 80. Sets the quality level for
@@ -510,11 +671,6 @@ XBM
 ^^^
 
 PIL reads and writes X bitmap files (mode ``1``).
-
-XV Thumbnails
-^^^^^^^^^^^^^
-
-PIL can read XV thumbnail files.
 
 Read-only formats
 -----------------
@@ -534,6 +690,17 @@ is commonly used in fax applications. The DCX decoder can read files containing
 
 When the file is opened, only the first image is read. You can use
 :py:meth:`~file.seek` or :py:mod:`~PIL.ImageSequence` to read other images.
+
+
+DDS
+^^^
+
+DDS is a popular container texture format used in video games and natively
+supported by DirectX.
+Currently, DXT1, DXT3, and DXT5 pixel formats are supported and only in ``RGBA``
+mode.
+
+.. versionadded:: 3.4.0 DXT3
 
 FLI, FLC
 ^^^^^^^^
@@ -559,16 +726,28 @@ into account.
     library before building the Python Imaging Library. See the distribution
     README for details.
 
+FTEX
+^^^^
+
+.. versionadded:: 3.2.0
+
+The FTEX decoder reads textures used for 3D objects in
+Independence War 2: Edge Of Chaos. The plugin reads a single texture
+per file, in the compressed and uncompressed formats.
+
 GBR
 ^^^
 
-The GBR decoder reads GIMP brush files.
+The GBR decoder reads GIMP brush files, version 1 and 2.
 
 The :py:meth:`~PIL.Image.Image.open` method sets the following
 :py:attr:`~PIL.Image.Image.info` properties:
 
-**description**
+**comment**
     The brush name.
+
+**spacing**
+    The spacing between the brushes, in pixels. Version 2 only.
 
 GD
 ^^
@@ -583,30 +762,6 @@ The :py:meth:`~PIL.Image.Image.open` method sets the following
 **transparency**
     Transparency color index. This key is omitted if the image is not
     transparent.
-
-ICO
-^^^
-
-ICO is used to store icons on Windows. The largest available icon is read.
-
-ICNS
-^^^^
-
-PIL reads Mac OS X ``.icns`` files.  By default, the largest available icon is
-read, though you can override this by setting the :py:attr:`~PIL.Image.Image.size`
-property before calling :py:meth:`~PIL.Image.Image.load`.  The
-:py:meth:`~PIL.Image.Image.open` method sets the following
-:py:attr:`~PIL.Image.Image.info` property:
-
-**sizes**
-    A list of supported sizes found in this icon file; these are a
-    3-tuple, ``(width, height, scale)``, where ``scale`` is 2 for a retina
-    icon and 1 for a standard icon.  You *are* permitted to use this 3-tuple
-    format for the :py:attr:`~PIL.Image.Image.size` property if you set it
-    before calling :py:meth:`~PIL.Image.Image.load`; after loading, the size
-    will be reset to a 2-tuple containing pixel dimensions (so, e.g. if you
-    ask for ``(512, 512, 2)``, the final value of
-    :py:attr:`~PIL.Image.Image.size` will be ``(1024, 1024)``).
 
 IMT
 ^^^
@@ -623,7 +778,8 @@ MCIDAS
 
 PIL identifies and reads 8-bit McIdas area files.
 
-MIC (read only)
+MIC
+^^^
 
 PIL identifies and reads Microsoft Image Composer (MIC) files. When opened, the
 first sprite in the file is loaded. You can use :py:meth:`~file.seek` and
@@ -637,30 +793,26 @@ image when first opened. The :py:meth:`~file.seek` and :py:meth:`~file.tell`
 methods may be used to read other pictures from the file. The pictures are
 zero-indexed and random access is supported.
 
-MIC (read only)
-
-Pillow identifies and reads Microsoft Image Composer (MIC) files. When opened, the
-first sprite in the file is loaded. You can use :py:meth:`~file.seek` and
-:py:meth:`~file.tell` to read other sprites from the file.
-
 PCD
 ^^^
 
-PIL reads PhotoCD files containing ``RGB`` data. By default, the 768x512
-resolution is read. You can use the :py:meth:`~PIL.Image.Image.draft` method to
-read the lower resolution versions instead, thus effectively resizing the image
-to 384x256 or 192x128. Higher resolutions cannot be read by the Python Imaging
-Library.
+PIL reads PhotoCD files containing ``RGB`` data. This only reads the 768x512
+resolution image from the file. Higher resolutions are encoded in a proprietary
+encoding.
+
+PIXAR
+^^^^^
+
+PIL provides limited support for PIXAR raster files. The library can identify
+and read “dumped” RGB files.
+
+The format code is ``PIXAR``.
 
 PSD
 ^^^
 
 PIL identifies and reads PSD files written by Adobe Photoshop 2.5 and 3.0.
 
-SGI
-^^^
-
-PIL reads uncompressed ``L``, ``RGB``, and ``RGBA`` files.
 
 TGA
 ^^^
@@ -710,13 +862,15 @@ PIL can write PDF (Acrobat) images. Such images are written as binary PDF 1.1
 files, using either JPEG or HEX encoding depending on the image mode (and
 whether JPEG support is available or not).
 
-PIXAR (read only)
-^^^^^^^^^^^^^^^^^
+When calling :py:meth:`~PIL.Image.Image.save`, if a multiframe image is used,
+by default, only the first image will be saved. To save all frames, each frame
+to a separate page of the PDF, the ``save_all`` parameter must be present and
+set to ``True``.
 
-PIL provides limited support for PIXAR raster files. The library can identify
-and read “dumped” RGB files.
+XV Thumbnails
+^^^^^^^^^^^^^
 
-The format code is ``PIXAR``.
+PIL can read XV thumbnail files.
 
 Identify-only formats
 ---------------------
@@ -773,7 +927,7 @@ PIL identifies MPEG files.
 WMF
 ^^^
 
-PIL can identify placable WMF files.
+PIL can identify playable WMF files.
 
 In PIL 1.1.4 and earlier, the WMF driver provides some limited rendering
 support, but not enough to be useful for any real application.

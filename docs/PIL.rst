@@ -64,15 +64,6 @@ can be found here.
 
 .. intentionally skipped documenting this because it's deprecated
 
-:mod:`ImageFileIO` Module
--------------------------
-
-.. automodule:: PIL.ImageFileIO
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-
 :mod:`ImageShow` Module
 -----------------------
 
@@ -113,18 +104,33 @@ can be found here.
     :undoc-members:
     :show-inheritance:
 
-:mod:`TarIO` Module
--------------------
+:class:`PngImagePlugin.iTXt` Class
+----------------------------------
 
-.. automodule:: PIL.TarIO
+.. autoclass:: PIL.PngImagePlugin.iTXt
     :members:
     :undoc-members:
     :show-inheritance:
 
-:mod:`TiffTags` Module
-----------------------
+    .. method:: __new__(cls, text, lang, tkey)
 
-.. automodule:: PIL.TiffTags
+        :param value: value for this key
+        :param lang: language code
+        :param tkey: UTF-8 version of the key name
+
+:class:`PngImagePlugin.PngInfo` Class
+-------------------------------------
+
+.. autoclass:: PIL.PngImagePlugin.PngInfo
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+:mod:`TarIO` Module
+-------------------
+
+.. automodule:: PIL.TarIO
     :members:
     :undoc-members:
     :show-inheritance:

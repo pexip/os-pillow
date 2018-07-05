@@ -17,10 +17,8 @@
 _modes = {}
 
 
-##
-# Wrapper for mode strings.
-
-class ModeDescriptor:
+class ModeDescriptor(object):
+    """Wrapper for mode strings."""
 
     def __init__(self, mode, bands, basemode, basetype):
         self.mode = mode
@@ -32,10 +30,8 @@ class ModeDescriptor:
         return self.mode
 
 
-##
-# Gets a mode descriptor for the given mode.
-
 def getmode(mode):
+    """Gets a mode descriptor for the given mode."""
     if not _modes:
         # initialize mode cache
         from PIL import Image
@@ -43,7 +39,9 @@ def getmode(mode):
         for m, (basemode, basetype, bands) in Image._MODEINFO.items():
             _modes[m] = ModeDescriptor(m, bands, basemode, basetype)
         # extra experimental modes
+        _modes["RGBa"] = ModeDescriptor("RGBa", ("R", "G", "B", "a"), "RGB", "L")
         _modes["LA"] = ModeDescriptor("LA", ("L", "A"), "L", "L")
+        _modes["La"] = ModeDescriptor("La", ("L", "a"), "L", "L")
         _modes["PA"] = ModeDescriptor("PA", ("P", "A"), "RGB", "L")
         # mapping modes
         _modes["I;16"] = ModeDescriptor("I;16", "I", "L", "L")

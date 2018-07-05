@@ -73,7 +73,7 @@ PyImaging_MapperNew(const char* filename, int readonly)
         NULL);
     if (mapper->hFile == (HANDLE)-1) {
         PyErr_SetString(PyExc_IOError, "cannot open file");
-        PyObject_Del(mapper);
+        Py_DECREF(mapper);
         return NULL;
     }
 
@@ -84,7 +84,7 @@ PyImaging_MapperNew(const char* filename, int readonly)
     if (mapper->hMap == (HANDLE)-1) {
         CloseHandle(mapper->hFile);
         PyErr_SetString(PyExc_IOError, "cannot map file");
-        PyObject_Del(mapper);
+        Py_DECREF(mapper);
         return NULL;
     }
 
@@ -342,7 +342,17 @@ PyImaging_MapBuffer(PyObject* self, PyObject* args)
             stride = xsize * 4;
     }
 
+    if (ysize > INT_MAX / stride) {
+        PyErr_SetString(PyExc_MemoryError, "Integer overflow in ysize");
+        return NULL;
+    }
+
     size = (Py_ssize_t) ysize * stride;
+
+    if (offset > PY_SSIZE_T_MAX - size) {
+        PyErr_SetString(PyExc_MemoryError, "Integer overflow in offset");
+        return NULL;
+    }        
 
     /* check buffer size */
     if (PyImaging_GetBuffer(target, &view) < 0)

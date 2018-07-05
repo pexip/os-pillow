@@ -5,6 +5,8 @@
 #
 # Copyright (c) 2014 Dov Grobgeld <dov.grobgeld@gmail.com>
 
+from __future__ import print_function
+
 from PIL import Image
 from PIL import _imagingmorph
 import re
@@ -12,7 +14,7 @@ import re
 LUT_SIZE = 1 << 9
 
 
-class LutBuilder:
+class LutBuilder(object):
     """A class for building a MorphLut from a descriptive language
 
       The input patterns is a list of a strings sequences like these::
@@ -78,7 +80,7 @@ class LutBuilder:
     def build_default_lut(self):
         symbols = [0, 1]
         m = 1 << 4  # pos of current pixel
-        self.lut = bytearray([symbols[(i & m) > 0] for i in range(LUT_SIZE)])
+        self.lut = bytearray(symbols[(i & m) > 0] for i in range(LUT_SIZE))
 
     def get_lut(self):
         return self.lut
@@ -88,7 +90,7 @@ class LutBuilder:
         string permuted according to the permutation list.
         """
         assert(len(permutation) == 9)
-        return ''.join([pattern[p] for p in permutation])
+        return ''.join(pattern[p] for p in permutation)
 
     def _pattern_permute(self, basic_pattern, options, basic_result):
         """pattern_permute takes a basic pattern and its result and clones
@@ -152,14 +154,14 @@ class LutBuilder:
 
 #        # Debugging
 #        for p,r in patterns:
-#            print p,r
-#        print '--'
+#            print(p,r)
+#        print('--')
 
         # compile the patterns into regular expressions for speed
-        for i in range(len(patterns)):
-            p = patterns[i][0].replace('.', 'X').replace('X', '[01]')
+        for i, pattern in enumerate(patterns):
+            p = pattern[0].replace('.', 'X').replace('X', '[01]')
             p = re.compile(p)
-            patterns[i] = (p, patterns[i][1])
+            patterns[i] = (p, pattern[1])
 
         # Step through table and find patterns that match.
         # Note that all the patterns are searched. The last one
@@ -176,7 +178,7 @@ class LutBuilder:
         return self.lut
 
 
-class MorphOp:
+class MorphOp(object):
     """A class for binary morphological operators"""
 
     def __init__(self,
@@ -198,6 +200,8 @@ class MorphOp:
         if self.lut is None:
             raise Exception('No operator loaded')
 
+        if image.mode != 'L':
+            raise Exception('Image must be binary, meaning it must use mode L')
         outimage = Image.new(image.mode, image.size, None)
         count = _imagingmorph.apply(
             bytes(self.lut), image.im.id, outimage.im.id)
@@ -212,6 +216,8 @@ class MorphOp:
         if self.lut is None:
             raise Exception('No operator loaded')
 
+        if image.mode != 'L':
+            raise Exception('Image must be binary, meaning it must use mode L')
         return _imagingmorph.match(bytes(self.lut), image.im.id)
 
     def get_on_pixels(self, image):
@@ -220,6 +226,8 @@ class MorphOp:
         Returns a list of tuples of (x,y) coordinates
         of all matching pixels."""
 
+        if image.mode != 'L':
+            raise Exception('Image must be binary, meaning it must use mode L')
         return _imagingmorph.get_on_pixels(image.im.id)
 
     def load_lut(self, filename):
@@ -241,5 +249,3 @@ class MorphOp:
     def set_lut(self, lut):
         """Set the lut from an external source"""
         self.lut = lut
-
-# End of file

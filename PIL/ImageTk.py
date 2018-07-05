@@ -33,6 +33,7 @@ except ImportError:
     del Tkinter
 
 from PIL import Image
+from io import BytesIO
 
 
 # --------------------------------------------------------------------
@@ -53,10 +54,20 @@ def _pilbitmap_check():
     return _pilbitmap_ok
 
 
+def _get_image_from_kw(kw):
+    source = None
+    if "file" in kw:
+        source = kw.pop("file")
+    elif "data" in kw:
+        source = BytesIO(kw.pop("data"))
+    if source:
+        return Image.open(source)
+
+
 # --------------------------------------------------------------------
 # PhotoImage
 
-class PhotoImage:
+class PhotoImage(object):
     """
     A Tkinter-compatible photo image.  This can be used
     everywhere Tkinter expects an image object.  If the image is an RGBA
@@ -80,13 +91,7 @@ class PhotoImage:
 
         # Tk compatibility: file or data
         if image is None:
-            if "file" in kw:
-                image = Image.open(kw["file"])
-                del kw["file"]
-            elif "data" in kw:
-                from io import BytesIO
-                image = Image.open(BytesIO(kw["data"]))
-                del kw["data"]
+            image = _get_image_from_kw(kw)
 
         if hasattr(image, "mode") and hasattr(image, "size"):
             # got an image instead of a mode
@@ -190,9 +195,8 @@ class PhotoImage:
 # BitmapImage
 
 
-class BitmapImage:
+class BitmapImage(object):
     """
-
     A Tkinter-compatible bitmap image.  This can be used everywhere Tkinter
     expects an image object.
 
@@ -209,13 +213,7 @@ class BitmapImage:
 
         # Tk compatibility: file or data
         if image is None:
-            if "file" in kw:
-                image = Image.open(kw["file"])
-                del kw["file"]
-            elif "data" in kw:
-                from io import BytesIO
-                image = Image.open(BytesIO(kw["data"]))
-                del kw["data"]
+            image = _get_image_from_kw(kw)
 
         self.__mode = image.mode
         self.__size = image.size
@@ -270,10 +268,8 @@ def getimage(photo):
     photo.tk.call("PyImagingPhotoGet", photo)
 
 
-# --------------------------------------------------------------------
-# Helper for the Image.show method.
-
 def _show(image, title):
+    """Helper for the Image.show method."""
 
     class UI(tkinter.Label):
         def __init__(self, master, im):

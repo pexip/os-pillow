@@ -19,6 +19,11 @@ class TestImageConvert(PillowTestCase):
             for mode in modes:
                 convert(im, mode)
 
+            # Check 0
+            im = Image.new(mode, (0,0))
+            for mode in modes:
+                convert(im, mode)
+                  
     def test_default(self):
 
         im = hopper("P")
@@ -123,8 +128,15 @@ class TestImageConvert(PillowTestCase):
         self.assertNotIn('transparency', p.info)
         p.save(f)
 
+    def test_p_la(self):
+        im = hopper('RGBA')
+        alpha = hopper('L')
+        im.putalpha(alpha)
+
+        comparable = im.convert('P').convert('LA').split()[1]
+
+        self.assert_image_similar(alpha, comparable, 5)
+
 
 if __name__ == '__main__':
     unittest.main()
-
-# End of file

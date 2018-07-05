@@ -17,8 +17,8 @@ class TestFontPcf(PillowTestCase):
             self.skipTest("zlib support not available")
 
     def save_font(self):
-        file = open(fontname, "rb")
-        font = PcfFontFile.PcfFontFile(file)
+        test_file = open(fontname, "rb")
+        font = PcfFontFile.PcfFontFile(test_file)
         self.assertIsInstance(font, FontFile.FontFile)
         self.assertEqual(len([_f for _f in font.glyph if _f]), 192)
 
@@ -29,6 +29,10 @@ class TestFontPcf(PillowTestCase):
 
     def test_sanity(self):
         self.save_font()
+
+    def test_invalid_file(self):
+        with open("Tests/images/flower.jpg", "rb") as fp:
+            self.assertRaises(SyntaxError, lambda: PcfFontFile.PcfFontFile(fp))
 
     def xtest_draw(self):
 
@@ -51,7 +55,7 @@ class TestFontPcf(PillowTestCase):
         self.assert_image_equal(image, compare)
 
     def test_high_characters(self):
-        message = "".join([chr(i+1) for i in range(140, 232)])
+        message = "".join(chr(i+1) for i in range(140, 232))
         self._test_high_characters(message)
         # accept bytes instances in Py3.
         if bytes is not str:
@@ -60,5 +64,3 @@ class TestFontPcf(PillowTestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
-# End of file

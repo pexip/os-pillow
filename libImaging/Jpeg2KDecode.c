@@ -46,9 +46,9 @@ j2k_error(const char *msg, void *client_data)
 static OPJ_SIZE_T
 j2k_read(void *p_buffer, OPJ_SIZE_T p_nb_bytes, void *p_user_data)
 {
-    ImagingIncrementalCodec decoder = (ImagingIncrementalCodec)p_user_data;
+    ImagingCodecState state = (ImagingCodecState)p_user_data;
 
-    size_t len = ImagingIncrementalCodecRead(decoder, p_buffer, p_nb_bytes);
+    size_t len = _imaging_read_pyFd(state->fd, p_buffer, p_nb_bytes);
 
     return len ? len : (OPJ_SIZE_T)-1;
 }
@@ -56,8 +56,11 @@ j2k_read(void *p_buffer, OPJ_SIZE_T p_nb_bytes, void *p_user_data)
 static OPJ_OFF_T
 j2k_skip(OPJ_OFF_T p_nb_bytes, void *p_user_data)
 {
-    ImagingIncrementalCodec decoder = (ImagingIncrementalCodec)p_user_data;
-    off_t pos = ImagingIncrementalCodecSkip(decoder, p_nb_bytes);
+    off_t pos;
+    ImagingCodecState state = (ImagingCodecState)p_user_data;
+
+    _imaging_seek_pyFd(state->fd, p_nb_bytes, SEEK_CUR);
+    pos = _imaging_tell_pyFd(state->fd);
 
     return pos ? pos : (OPJ_OFF_T)-1;
 }
@@ -68,7 +71,7 @@ j2k_skip(OPJ_OFF_T p_nb_bytes, void *p_user_data)
 
 typedef void (*j2k_unpacker_t)(opj_image_t *in,
                                const JPEG2KTILEINFO *tileInfo,
-                               const UINT8 *data, 
+                               const UINT8 *data,
                                Imaging im);
 
 struct j2k_decode_unpacker {
@@ -335,7 +338,7 @@ j2ku_srgb_rgb(opj_image_t *in, const JPEG2KTILEINFO *tileinfo,
         UINT8 *row = (UINT8 *)im->image[y0 + y] + x0 * 4;
         for (n = 0; n < 3; ++n)
             data[n] = &cdata[n][csiz[n] * y * w];
-        
+
         for (x = 0; x < w; ++x) {
             for (n = 0; n < 3; ++n) {
                 UINT32 word = 0;
@@ -388,7 +391,7 @@ j2ku_sycc_rgb(opj_image_t *in, const JPEG2KTILEINFO *tileinfo,
         UINT8 *row_start = row;
         for (n = 0; n < 3; ++n)
             data[n] = &cdata[n][csiz[n] * y * w];
-        
+
         for (x = 0; x < w; ++x) {
             for (n = 0; n < 3; ++n) {
                 UINT32 word = 0;
@@ -442,7 +445,7 @@ j2ku_srgba_rgba(opj_image_t *in, const JPEG2KTILEINFO *tileinfo,
         UINT8 *row = (UINT8 *)im->image[y0 + y] + x0 * 4;
         for (n = 0; n < 4; ++n)
             data[n] = &cdata[n][csiz[n] * y * w];
-        
+
         for (x = 0; x < w; ++x) {
             for (n = 0; n < 4; ++n) {
                 UINT32 word = 0;
@@ -494,7 +497,7 @@ j2ku_sycca_rgba(opj_image_t *in, const JPEG2KTILEINFO *tileinfo,
         UINT8 *row_start = row;
         for (n = 0; n < 4; ++n)
             data[n] = &cdata[n][csiz[n] * y * w];
-        
+
         for (x = 0; x < w; ++x) {
             for (n = 0; n < 4; ++n) {
                 UINT32 word = 0;
@@ -545,8 +548,7 @@ enum {
 };
 
 static int
-j2k_decode_entry(Imaging im, ImagingCodecState state,
-                 ImagingIncrementalCodec decoder)
+j2k_decode_entry(Imaging im, ImagingCodecState state)
 {
     JPEG2KDECODESTATE *context = (JPEG2KDECODESTATE *) state->context;
     opj_stream_t *stream = NULL;
@@ -558,7 +560,7 @@ j2k_decode_entry(Imaging im, ImagingCodecState state,
     size_t buffer_size = 0;
     unsigned n;
 
-    stream = opj_stream_default_create(OPJ_TRUE);
+    stream = opj_stream_create(BUFFER_SIZE, OPJ_TRUE);
 
     if (!stream) {
         state->errcode = IMAGING_CODEC_BROKEN;
@@ -571,9 +573,9 @@ j2k_decode_entry(Imaging im, ImagingCodecState state,
 
     /* OpenJPEG 2.0 doesn't have OPJ_VERSION_MAJOR */
 #ifndef OPJ_VERSION_MAJOR
-    opj_stream_set_user_data(stream, decoder);
+    opj_stream_set_user_data(stream, state);
 #else
-    opj_stream_set_user_data(stream, decoder, NULL);
+    opj_stream_set_user_data(stream, state, NULL);
 
     /* Hack: if we don't know the length, the largest file we can
        possibly support is 4GB.  We can't go larger than this, because
@@ -587,13 +589,13 @@ j2k_decode_entry(Imaging im, ImagingCodecState state,
 
     /* Setup decompression context */
     context->error_msg = NULL;
-    
+
     opj_set_default_decoder_parameters(&params);
     params.cp_reduce = context->reduce;
     params.cp_layer = context->layers;
-    
+
     codec = opj_create_decompress(context->format);
-    
+
     if (!codec) {
         state->errcode = IMAGING_CODEC_BROKEN;
         state->state = J2K_STATE_FAILED;
@@ -616,7 +618,7 @@ j2k_decode_entry(Imaging im, ImagingCodecState state,
         state->state = J2K_STATE_FAILED;
         goto quick_exit;
     }
-    
+
     for (n = 1; n < image->numcomps; ++n) {
         if (image->comps[n].dx != 1 || image->comps[n].dy != 1) {
             state->errcode = IMAGING_CODEC_BROKEN;
@@ -624,8 +626,8 @@ j2k_decode_entry(Imaging im, ImagingCodecState state,
             goto quick_exit;
         }
     }
-    
-    /* 
+
+    /*
          Colorspace    Number of components    PIL mode
        ------------------------------------------------------
          sRGB          3                       RGB
@@ -633,22 +635,22 @@ j2k_decode_entry(Imaging im, ImagingCodecState state,
          gray          1                       L or I
          gray          2                       LA
          YCC           3                       YCbCr
-       
-       
+
+
        If colorspace is unspecified, we assume:
-       
+
            Number of components   Colorspace
          -----------------------------------------
            1                      gray
            2                      gray (+ alpha)
            3                      sRGB
            4                      sRGB (+ alpha)
-       
+
     */
-    
+
     /* Find the correct unpacker */
     color_space = image->color_space;
-    
+
     if (color_space == OPJ_CLRSPC_UNSPECIFIED) {
         switch (image->numcomps) {
         case 1: case 2: color_space = OPJ_CLRSPC_GRAY; break;
@@ -668,7 +670,7 @@ j2k_decode_entry(Imaging im, ImagingCodecState state,
     if (!unpack) {
         state->errcode = IMAGING_CODEC_BROKEN;
         state->state = J2K_STATE_FAILED;
-        goto quick_exit; 
+        goto quick_exit;
     }
 
     /* Decode the image tile-by-tile; this means we only need use as much
@@ -702,6 +704,7 @@ j2k_decode_entry(Imaging im, ImagingCodecState state,
         tile_info.y1 = (tile_info.y1 + correction) >> context->reduce;
 
         if (buffer_size < tile_info.data_size) {
+            /* malloc check ok, tile_info.data_size from openjpeg */
             UINT8 *new = realloc (state->buffer, tile_info.data_size);
             if (!new) {
                 state->errcode = IMAGING_CODEC_MEMORY;
@@ -748,6 +751,12 @@ j2k_decode_entry(Imaging im, ImagingCodecState state,
     state->state = J2K_STATE_DONE;
     state->errcode = IMAGING_CODEC_END;
 
+    if (context->pfile) {
+        if(fclose(context->pfile)){
+            context->pfile = NULL;
+        }
+    }
+
  quick_exit:
     if (codec)
         opj_destroy_codec(codec);
@@ -762,28 +771,28 @@ j2k_decode_entry(Imaging im, ImagingCodecState state,
 int
 ImagingJpeg2KDecode(Imaging im, ImagingCodecState state, UINT8* buf, int bytes)
 {
-    JPEG2KDECODESTATE *context = (JPEG2KDECODESTATE *) state->context;
+
+    if (bytes){
+        state->errcode = IMAGING_CODEC_BROKEN;
+        state->state = J2K_STATE_FAILED;
+        return -1;
+    }
 
     if (state->state == J2K_STATE_DONE || state->state == J2K_STATE_FAILED)
         return -1;
 
     if (state->state == J2K_STATE_START) {
-        context->decoder = ImagingIncrementalCodecCreate(j2k_decode_entry,
-                                                         im, state,
-                                                         INCREMENTAL_CODEC_READ,
-                                                         INCREMENTAL_CODEC_NOT_SEEKABLE,
-                                                         context->fd);
-
-        if (!context->decoder) {
-            state->errcode = IMAGING_CODEC_BROKEN;
-            state->state = J2K_STATE_FAILED;
-            return -1;
-        }
-
         state->state = J2K_STATE_DECODING;
+
+        return j2k_decode_entry(im, state);
     }
 
-    return ImagingIncrementalCodecPushBuffer(context->decoder, buf, bytes);
+    if (state->state == J2K_STATE_DECODING) {
+        state->errcode = IMAGING_CODEC_BROKEN;
+        state->state = J2K_STATE_FAILED;
+        return -1;
+    }
+    return -1;
 }
 
 /* -------------------------------------------------------------------- */
@@ -794,16 +803,11 @@ int
 ImagingJpeg2KDecodeCleanup(ImagingCodecState state) {
     JPEG2KDECODESTATE *context = (JPEG2KDECODESTATE *)state->context;
 
-    if (context->error_msg)
+    if (context->error_msg) {
         free ((void *)context->error_msg);
-
-    if (context->decoder)
-        ImagingIncrementalCodecDestroy(context->decoder);
+    }
 
     context->error_msg = NULL;
-
-    /* Prevent multiple calls to ImagingIncrementalCodecDestroy */
-    context->decoder = NULL;
 
     return -1;
 }
