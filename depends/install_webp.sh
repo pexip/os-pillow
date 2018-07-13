@@ -1,14 +1,11 @@
 #!/bin/bash
 # install webp
 
-if [ ! -f libwebp-0.4.1.tar.gz ]; then
-    wget 'http://downloads.webmproject.org/releases/webp/libwebp-0.4.1.tar.gz'
-fi
+archive=libwebp-0.5.2
 
-rm -r libwebp-0.4.1
-tar -xvzf libwebp-0.4.1.tar.gz
+./download-and-extract.sh $archive https://raw.githubusercontent.com/python-pillow/pillow-depends/master/$archive.tar.gz
 
-pushd libwebp-0.4.1
+pushd $archive
 
 ./configure --prefix=/usr --enable-libwebpmux --enable-libwebpdemux && make -j4 && sudo make -j4 install
 

@@ -2,7 +2,7 @@
 # The Python Imaging Library
 # $Id$
 #
-# screen grabber (windows only)
+# screen grabber (macOS and Windows only)
 #
 # History:
 # 2001-04-26 fl  created
@@ -18,35 +18,64 @@
 from PIL import Image
 
 import sys
-if sys.platform != "win32":
-    raise ImportError("ImageGrab is Windows only")
+if sys.platform not in ["win32", "darwin"]:
+    raise ImportError("ImageGrab is macOS and Windows only")
 
-try:
-    # built-in driver (1.1.3 and later)
+if sys.platform == "win32":
     grabber = Image.core.grabscreen
-except AttributeError:
-    # stand-alone driver (pil plus)
-    import _grabscreen
-    grabber = _grabscreen.grab
+elif sys.platform == "darwin":
+    import os
+    import tempfile
+    import subprocess
 
 
 def grab(bbox=None):
-    size, data = grabber()
-    im = Image.frombytes(
-        "RGB", size, data,
-        # RGB, 32-bit line padding, origo in lower left corner
-        "raw", "BGR", (size[0]*3 + 3) & -4, -1
-        )
+    if sys.platform == "darwin":
+        fh, filepath = tempfile.mkstemp('.png')
+        os.close(fh)
+        subprocess.call(['screencapture', '-x', filepath])
+        im = Image.open(filepath)
+        im.load()
+        os.unlink(filepath)
+    else:
+        size, data = grabber()
+        im = Image.frombytes(
+            "RGB", size, data,
+            # RGB, 32-bit line padding, origin lower left corner
+            "raw", "BGR", (size[0]*3 + 3) & -4, -1
+            )
     if bbox:
         im = im.crop(bbox)
     return im
 
 
 def grabclipboard():
-    debug = 0  # temporary interface
-    data = Image.core.grabclipboard(debug)
-    if isinstance(data, bytes):
-        from PIL import BmpImagePlugin
-        import io
-        return BmpImagePlugin.DibImageFile(io.BytesIO(data))
-    return data
+    if sys.platform == "darwin":
+        fh, filepath = tempfile.mkstemp('.jpg')
+        os.close(fh)
+        commands = [
+            "set theFile to (open for access POSIX file \""+filepath+"\" with write permission)",
+            "try",
+                "write (the clipboard as JPEG picture) to theFile",
+            "end try",
+            "close access theFile"
+        ]
+        script = ["osascript"]
+        for command in commands:
+            script += ["-e", command]
+        subprocess.call(script)
+
+        im = None
+        if os.stat(filepath).st_size != 0:
+            im = Image.open(filepath)
+            im.load()
+        os.unlink(filepath)
+        return im
+    else:
+        debug = 0  # temporary interface
+        data = Image.core.grabclipboard(debug)
+        if isinstance(data, bytes):
+            from PIL import BmpImagePlugin
+            import io
+            return BmpImagePlugin.DibImageFile(io.BytesIO(data))
+        return data

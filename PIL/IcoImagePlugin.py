@@ -15,17 +15,20 @@
 
 # This plugin is a refactored version of Win32IconImagePlugin by Bryan Davis
 # <casadebender@gmail.com>.
-# https://code.google.com/p/casadebender/wiki/Win32IconImagePlugin
+# https://code.google.com/archive/p/casadebender/wikis/Win32IconImagePlugin.wiki
 #
 # Icon format references:
-#   * http://en.wikipedia.org/wiki/ICO_(file_format)
-#   * http://msdn.microsoft.com/en-us/library/ms997538.aspx
+#   * https://en.wikipedia.org/wiki/ICO_(file_format)
+#   * https://msdn.microsoft.com/en-us/library/ms997538.aspx
 
 
-__version__ = "0.1"
+import struct
+from io import BytesIO
 
 from PIL import Image, ImageFile, BmpImagePlugin, PngImagePlugin, _binary
 from math import log, ceil
+
+__version__ = "0.1"
 
 #
 # --------------------------------------------------------------------
@@ -37,11 +40,49 @@ i32 = _binary.i32le
 _MAGIC = b"\0\0\1\0"
 
 
+def _save(im, fp, filename):
+    fp.write(_MAGIC)  # (2+2)
+    sizes = im.encoderinfo.get("sizes",
+                               [(16, 16), (24, 24), (32, 32), (48, 48),
+                                (64, 64), (128, 128), (256, 256)])
+    width, height = im.size
+    sizes = filter(lambda x: False if (x[0] > width or x[1] > height or
+                                       x[0] > 256 or x[1] > 256) else True,
+                   sizes)
+    sizes = list(sizes)
+    fp.write(struct.pack("<H", len(sizes)))  # idCount(2)
+    offset = fp.tell() + len(sizes)*16
+    for size in sizes:
+        width, height = size
+        # 0 means 256
+        fp.write(struct.pack("B", width if width < 256 else 0))  # bWidth(1)
+        fp.write(struct.pack("B", height if height < 256 else 0))  # bHeight(1)
+        fp.write(b"\0")  # bColorCount(1)
+        fp.write(b"\0")  # bReserved(1)
+        fp.write(b"\0\0")  # wPlanes(2)
+        fp.write(struct.pack("<H", 32))  # wBitCount(2)
+
+        image_io = BytesIO()
+        tmp = im.copy()
+        tmp.thumbnail(size, Image.LANCZOS)
+        tmp.save(image_io, "png")
+        image_io.seek(0)
+        image_bytes = image_io.read()
+        bytes_len = len(image_bytes)
+        fp.write(struct.pack("<I", bytes_len))  # dwBytesInRes(4)
+        fp.write(struct.pack("<I", offset))  # dwImageOffset(4)
+        current = fp.tell()
+        fp.seek(offset)
+        fp.write(image_bytes)
+        offset = offset + bytes_len
+        fp.seek(current)
+
+
 def _accept(prefix):
     return prefix[:4] == _MAGIC
 
 
-class IcoFile:
+class IcoFile(object):
     def __init__(self, buf):
         """
         Parse image from file-like object containing ico file data
@@ -101,7 +142,7 @@ class IcoFile:
         """
         Get a list of all available icon sizes and color depths.
         """
-        return set((h['width'], h['height']) for h in self.entry)
+        return {(h['width'], h['height']) for h in self.entry}
 
     def getimage(self, size, bpp=False):
         """
@@ -177,13 +218,13 @@ class IcoFile:
                 total_bytes = int((w * im.size[1]) / 8)
 
                 self.buf.seek(and_mask_offset)
-                maskData = self.buf.read(total_bytes)
+                mask_data = self.buf.read(total_bytes)
 
                 # convert raw data to image
                 mask = Image.frombuffer(
                     '1',            # 1 bpp
                     im.size,        # (w, h)
-                    maskData,       # source chars
+                    mask_data,      # source chars
                     'raw',          # raw decoder
                     ('1;I', int(w/8), -1)  # 1bpp inverted, padded, reversed
                 )
@@ -214,7 +255,7 @@ class IcoImageFile(ImageFile.ImageFile):
 
     This plugin is a refactored version of Win32IconImagePlugin by Bryan Davis
     <casadebender@gmail.com>.
-    https://code.google.com/p/casadebender/wiki/Win32IconImagePlugin
+    https://code.google.com/archive/p/casadebender/wikis/Win32IconImagePlugin.wiki
     """
     format = "ICO"
     format_description = "Windows Icon"
@@ -234,11 +275,13 @@ class IcoImageFile(ImageFile.ImageFile):
         self.size = im.size
 
     def load_seek(self):
-        # Flage the ImageFile.Parser so that it
+        # Flag the ImageFile.Parser so that it
         # just does all the decode at the end.
         pass
 #
 # --------------------------------------------------------------------
 
-Image.register_open("ICO", IcoImageFile, _accept)
-Image.register_extension("ICO", ".ico")
+
+Image.register_open(IcoImageFile.format, IcoImageFile, _accept)
+Image.register_save(IcoImageFile.format, _save)
+Image.register_extension(IcoImageFile.format, ".ico")

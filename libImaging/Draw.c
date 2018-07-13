@@ -434,7 +434,8 @@ polygon_generic(Imaging im, int n, Edge *e, int ink, int eofill,
     }
 
     /* Initialize the edge table and find polygon boundaries */
-    edge_table = malloc(sizeof(Edge*) * n);
+    /* malloc check ok, using calloc */
+    edge_table = calloc(n, sizeof(Edge*));
     if (!edge_table) {
         return -1;
     }
@@ -457,12 +458,13 @@ polygon_generic(Imaging im, int n, Edge *e, int ink, int eofill,
     if (ymin < 0) {
         ymin = 0;
     }
-    if (ymax >= im->ysize) {
-        ymax = im->ysize - 1;
+    if (ymax > im->ysize) {
+        ymax = im->ysize;
     }
 
     /* Process the edge table with a scan line searching for intersections */
-    xx = malloc(sizeof(float) * edge_count * 2);
+    /* malloc check ok, using calloc */
+    xx = calloc(edge_count * 2, sizeof(float));
     if (!xx) {
         free(edge_table);
         return -1;
@@ -600,7 +602,6 @@ ImagingDrawWideLine(Imaging im, int x0, int y0, int x1, int y1,
     double big_hypotenuse, small_hypotenuse, ratio_max, ratio_min;
     int dxmin, dxmax, dymin, dymax;
     Edge e[4];
-    int vertices[4][2];
 
     DRAWINIT();
 
@@ -701,7 +702,8 @@ ImagingDrawPolygon(Imaging im, int count, int* xy, const void* ink_,
     if (fill) {
 
         /* Build edge list */
-        Edge* e = malloc(count * sizeof(Edge));
+        /* malloc check ok, using calloc */
+        Edge* e = calloc(count, sizeof(Edge));
         if (!e) {
             (void) ImagingError_MemoryError();
             return -1;
@@ -744,10 +746,11 @@ ImagingDrawBitmap(Imaging im, int x0, int y0, Imaging bitmap, const void* ink,
 
 static int
 ellipse(Imaging im, int x0, int y0, int x1, int y1,
-        int start, int end, const void* ink_, int fill,
+        float start, float end, const void* ink_, int fill,
         int mode, int op)
 {
-    int i, n;
+    float i;
+    int n;
     int cx, cy;
     int w, h;
     int x = 0, y = 0;
@@ -769,10 +772,16 @@ ellipse(Imaging im, int x0, int y0, int x1, int y1,
     while (end < start)
         end += 360;
 
+    if (end - start > 360) {
+        /* no need to go in loops */
+        end = start + 361;
+    }
+
     if (mode != ARC && fill) {
 
         /* Build edge list */
-        Edge* e = malloc((end - start + 3) * sizeof(Edge));
+        /* malloc check UNDONE, FLOAT? */
+        Edge* e = calloc((end - start + 3), sizeof(Edge));
         if (!e) {
             ImagingError_MemoryError();
             return -1;
@@ -780,7 +789,10 @@ ellipse(Imaging im, int x0, int y0, int x1, int y1,
 
         n = 0;
 
-        for (i = start; i <= end; i++) {
+        for (i = start; i < end+1; i++) {
+            if (i > end) {
+                i = end;
+            }
             x = FLOOR((cos(i*M_PI/180) * w/2) + cx + 0.5);
             y = FLOOR((sin(i*M_PI/180) * h/2) + cy + 0.5);
             if (i != start)
@@ -808,7 +820,10 @@ ellipse(Imaging im, int x0, int y0, int x1, int y1,
 
     } else {
 
-        for (i = start; i <= end; i++) {
+        for (i = start; i < end+1; i++) {
+            if (i > end) {
+                i = end;
+            }
             x = FLOOR((cos(i*M_PI/180) * w/2) + cx + 0.5);
             y = FLOOR((sin(i*M_PI/180) * h/2) + cy + 0.5);
             if (i != start)
@@ -836,14 +851,14 @@ ellipse(Imaging im, int x0, int y0, int x1, int y1,
 
 int
 ImagingDrawArc(Imaging im, int x0, int y0, int x1, int y1,
-               int start, int end, const void* ink, int op)
+               float start, float end, const void* ink, int op)
 {
     return ellipse(im, x0, y0, x1, y1, start, end, ink, 0, ARC, op);
 }
 
 int
 ImagingDrawChord(Imaging im, int x0, int y0, int x1, int y1,
-               int start, int end, const void* ink, int fill, int op)
+               float start, float end, const void* ink, int fill, int op)
 {
     return ellipse(im, x0, y0, x1, y1, start, end, ink, fill, CHORD, op);
 }
@@ -857,7 +872,7 @@ ImagingDrawEllipse(Imaging im, int x0, int y0, int x1, int y1,
 
 int
 ImagingDrawPieslice(Imaging im, int x0, int y0, int x1, int y1,
-                    int start, int end, const void* ink, int fill, int op)
+                    float start, float end, const void* ink, int fill, int op)
 {
     return ellipse(im, x0, y0, x1, y1, start, end, ink, fill, PIESLICE, op);
 }
@@ -923,10 +938,16 @@ allocate(ImagingOutline outline, int extra)
     if (outline->count + extra > outline->size) {
         /* expand outline buffer */
         outline->size += extra + 25;
-        if (!outline->edges)
-            e = malloc(outline->size * sizeof(Edge));
-        else
+        if (!outline->edges) {
+            /* malloc check ok, uses calloc for overflow */
+            e = calloc(outline->size, sizeof(Edge));
+        } else {
+            if (outline->size > INT_MAX / sizeof(Edge)) {
+                return NULL;
+            }
+            /* malloc check ok, overflow checked above */
             e = realloc(outline->edges, outline->size * sizeof(Edge));
+        }
         if (!e)
             return NULL;
         outline->edges = e;

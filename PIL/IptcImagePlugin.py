@@ -17,12 +17,11 @@
 
 from __future__ import print_function
 
-__version__ = "0.3"
-
-
 from PIL import Image, ImageFile, _binary
 import os
 import tempfile
+
+__version__ = "0.3"
 
 i8 = _binary.i8
 i16 = _binary.i16be
@@ -108,7 +107,7 @@ class IptcImageFile(ImageFile.ImageFile):
             else:
                 self.info[tag] = tagdata
 
-            # print tag, self.info[tag]
+            # print(tag, self.info[tag])
 
         # mode
         layers = i8(self.info[(3, 60)][0])
@@ -169,35 +168,29 @@ class IptcImageFile(ImageFile.ImageFile):
         o.close()
 
         try:
-            try:
-                # fast
-                self.im = Image.core.open_ppm(outfile)
-            except:
-                # slightly slower
-                im = Image.open(outfile)
-                im.load()
-                self.im = im.im
+            _im = Image.open(outfile)
+            _im.load()
+            self.im = _im.im
         finally:
             try:
                 os.unlink(outfile)
-            except:
+            except OSError:
                 pass
 
 
-Image.register_open("IPTC", IptcImageFile)
+Image.register_open(IptcImageFile.format, IptcImageFile)
 
-Image.register_extension("IPTC", ".iim")
+Image.register_extension(IptcImageFile.format, ".iim")
 
-
-##
-# Get IPTC information from TIFF, JPEG, or IPTC file.
-#
-# @param im An image containing IPTC data.
-# @return A dictionary containing IPTC information, or None if
-#     no IPTC information block was found.
 
 def getiptcinfo(im):
+    """
+    Get IPTC information from TIFF, JPEG, or IPTC file.
 
+    :param im: An image containing IPTC data.
+    :returns: A dictionary containing IPTC information, or None if
+        no IPTC information block was found.
+    """
     from PIL import TiffImagePlugin, JpegImagePlugin
     import io
 
@@ -218,16 +211,16 @@ def getiptcinfo(im):
                 while app[offset:offset+4] == b"8BIM":
                     offset += 4
                     # resource code
-                    code = JpegImagePlugin.i16(app, offset)
+                    code = i16(app, offset)
                     offset += 2
                     # resource name (usually empty)
                     name_len = i8(app[offset])
-                    name = app[offset+1:offset+1+name_len]
+                    # name = app[offset+1:offset+1+name_len]
                     offset = 1 + offset + name_len
                     if offset & 1:
                         offset += 1
                     # resource data block
-                    size = JpegImagePlugin.i32(app, offset)
+                    size = i32(app, offset)
                     offset += 4
                     if code == 0x0404:
                         # 0x0404 contains IPTC/NAA data
@@ -251,7 +244,7 @@ def getiptcinfo(im):
         return None  # no properties
 
     # create an IptcImagePlugin object without initializing it
-    class FakeImage:
+    class FakeImage(object):
         pass
     im = FakeImage()
     im.__class__ = IptcImageFile

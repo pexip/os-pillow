@@ -51,6 +51,26 @@ class TestFileEps(PillowTestCase):
         self.assertEqual(image2_scale2.size, (720, 504))
         self.assertEqual(image2_scale2.format, "EPS")
 
+    def test_invalid_file(self):
+        invalid_file = "Tests/images/flower.jpg"
+
+        self.assertRaises(SyntaxError,
+                          lambda: EpsImagePlugin.EpsImageFile(invalid_file))
+
+    def test_cmyk(self):
+        cmyk_image = Image.open("Tests/images/pil_sample_cmyk.eps")
+
+        self.assertEqual(cmyk_image.mode, "CMYK")
+        self.assertEqual(cmyk_image.size, (100, 100))
+        self.assertEqual(cmyk_image.format, "EPS")
+
+        cmyk_image.load()
+        self.assertEqual(cmyk_image.mode, "RGB")
+
+        if 'jpeg_decoder' in dir(Image.core):
+            target = Image.open('Tests/images/pil_sample_rgb.jpg')
+            self.assert_image_similar(cmyk_image, target, 10)
+
     def test_file_object(self):
         # issue 479
         image1 = Image.open(file1)
@@ -73,7 +93,7 @@ class TestFileEps(PillowTestCase):
         image1_scale1_compare = Image.open(file1_compare).convert("RGB")
         image1_scale1_compare.load()
         self.assert_image_similar(img, image1_scale1_compare, 5)
-     
+
     def test_render_scale1(self):
         # We need png support for these render test
         codecs = dir(Image.core)
@@ -118,15 +138,18 @@ class TestFileEps(PillowTestCase):
         # Arrange
         image1 = Image.open(file1)
         image2 = Image.open(file2)
+        image3 = Image.open("Tests/images/illu10_preview.eps")
         new_size = (100, 100)
 
         # Act
         image1 = image1.resize(new_size)
         image2 = image2.resize(new_size)
+        image3 = image3.resize(new_size)
 
         # Assert
         self.assertEqual(image1.size, new_size)
         self.assertEqual(image2.size, new_size)
+        self.assertEqual(image3.size, new_size)
 
     def test_thumbnail(self):
         # Issue #619
@@ -148,8 +171,10 @@ class TestFileEps(PillowTestCase):
         # open image with binary preview
         Image.open(file3)
 
-    def _test_readline(self,t, ending):
-        ending = "Failure with line ending: %s" %("".join("%s" %ord(s) for s in ending))
+    def _test_readline(self, t, ending):
+        ending = "Failure with line ending: %s" % ("".join(
+                                                   "%s" % ord(s)
+                                                   for s in ending))
         self.assertEqual(t.readline().strip('\r\n'), 'something', ending)
         self.assertEqual(t.readline().strip('\r\n'), 'else', ending)
         self.assertEqual(t.readline().strip('\r\n'), 'baz', ending)
@@ -159,73 +184,85 @@ class TestFileEps(PillowTestCase):
         # check all the freaking line endings possible
         try:
             import StringIO
-        except:
+        except ImportError:
             # don't skip, it skips everything in the parent test
             return
         t = StringIO.StringIO(test_string)
         self._test_readline(t, ending)
-        
+
     def _test_readline_io(self, test_string, ending):
-        import io
         if str is bytes:
-            t = io.StringIO(unicode(test_string))            
+            t = io.StringIO(unicode(test_string))
         else:
             t = io.StringIO(test_string)
         self._test_readline(t, ending)
 
     def _test_readline_file_universal(self, test_string, ending):
         f = self.tempfile('temp.txt')
-        with open(f,'wb') as w:
+        with open(f, 'wb') as w:
             if str is bytes:
                 w.write(test_string)
             else:
                 w.write(test_string.encode('UTF-8'))
 
-        with open(f,'rU') as t:
+        with open(f, 'rU') as t:
             self._test_readline(t, ending)
 
     def _test_readline_file_psfile(self, test_string, ending):
         f = self.tempfile('temp.txt')
-        with open(f,'wb') as w:
+        with open(f, 'wb') as w:
             if str is bytes:
                 w.write(test_string)
             else:
                 w.write(test_string.encode('UTF-8'))
 
-        with open(f,'rb') as r:
+        with open(f, 'rb') as r:
             t = EpsImagePlugin.PSFile(r)
             self._test_readline(t, ending)
-                                    
+
     def test_readline(self):
         # check all the freaking line endings possible from the spec
-        #test_string = u'something\r\nelse\n\rbaz\rbif\n'
+        # test_string = u'something\r\nelse\n\rbaz\rbif\n'
         line_endings = ['\r\n', '\n']
-        not_working_endings = ['\n\r', '\r'] 
+        not_working_endings = ['\n\r', '\r']
         strings = ['something', 'else', 'baz', 'bif']
 
         for ending in line_endings:
             s = ending.join(strings)
-            # Native python versions will pass these endings.  
-            #self._test_readline_stringio(s, ending)
-            #self._test_readline_io(s, ending)
-            #self._test_readline_file_universal(s, ending)
-            
+            # Native Python versions will pass these endings.
+            # self._test_readline_stringio(s, ending)
+            # self._test_readline_io(s, ending)
+            # self._test_readline_file_universal(s, ending)
+
             self._test_readline_file_psfile(s, ending)
 
         for ending in not_working_endings:
             # these only work with the PSFile, while they're in spec,
             # they're not likely to be used
             s = ending.join(strings)
-            
-            # Native python versions may fail on these endings.  
-            #self._test_readline_stringio(s, ending)
-            #self._test_readline_io(s, ending)
-            #self._test_readline_file_universal(s, ending)
-            
+
+            # Native Python versions may fail on these endings.
+            # self._test_readline_stringio(s, ending)
+            # self._test_readline_io(s, ending)
+            # self._test_readline_file_universal(s, ending)
+
             self._test_readline_file_psfile(s, ending)
-      
+
+    def test_open_eps(self):
+        # https://github.com/python-pillow/Pillow/issues/1104
+        # Arrange
+        FILES = ["Tests/images/illu10_no_preview.eps",
+                 "Tests/images/illu10_preview.eps",
+                 "Tests/images/illuCS6_no_preview.eps",
+                 "Tests/images/illuCS6_preview.eps"]
+
+        # Act
+        for filename in FILES:
+            img = Image.open(filename)
+
+        # Assert
+        self.assertEqual(img.mode, "RGB")
+
 
 if __name__ == '__main__':
     unittest.main()
-
-# End of file

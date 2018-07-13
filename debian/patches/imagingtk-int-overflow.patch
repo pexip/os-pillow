@@ -1,0 +1,39 @@
+From: Markus Koschany <apo@debian.org>
+Date: Mon, 9 Jan 2017 10:11:13 +0100
+Subject: imagingtk int overflow
+
+Fix integer overflow on 32 bit architectures.
+
+Forwarded: https://github.com/python-pillow/Pillow/issues/1902
+Origin: https://github.com/matplotlib/matplotlib/commit/a91559b82cf23ee407cd57580653015fc7dc35f0
+---
+ _imagingtk.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/_imagingtk.c b/_imagingtk.c
+index 87de36a..db16468 100644
+--- a/_imagingtk.c
++++ b/_imagingtk.c
+@@ -36,18 +36,18 @@ _tkinit(PyObject* self, PyObject* args)
+ {
+     Tcl_Interp* interp;
+ 
+-    Py_ssize_t arg;
++    PyObject *arg;
+     int is_interp;
+-    if (!PyArg_ParseTuple(args, "ni", &arg, &is_interp))
++    if (!PyArg_ParseTuple(args, "Oi", &arg, &is_interp))
+         return NULL;
+ 
+     if (is_interp)
+-        interp = (Tcl_Interp*) arg;
++        interp = (Tcl_Interp*)PyLong_AsVoidPtr(arg);
+     else {
+         TkappObject* app;
+ 	/* Do it the hard way.  This will break if the TkappObject
+ 	   layout changes */
+-        app = (TkappObject*) arg;
++        app = (TkappObject*)PyLong_AsVoidPtr(arg);
+         interp = app->interp;
+     }
+ 

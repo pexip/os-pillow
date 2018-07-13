@@ -22,10 +22,14 @@
 
 from __future__ import print_function
 
-from cffi import FFI
+import logging
 import sys
 
-DEBUG = 0
+from cffi import FFI
+
+
+logger = logging.getLogger(__name__)
+
 
 defs = """
 struct Pixel_RGBA {
@@ -50,11 +54,15 @@ class PyAccess(object):
         self.xsize = vals['xsize']
         self.ysize = vals['ysize']
 
-        if DEBUG:
-            print (vals)
+        # Keep pointer to im object to prevent dereferencing.
+        self._im = img.im
+
+        # Debugging is polluting test traces, only useful here
+        # when hacking on PyAccess
+        # logger.debug("%s", vals)
         self._post_init()
 
-    def _post_init():
+    def _post_init(self):
         pass
 
     def __setitem__(self, xy, color):
@@ -78,6 +86,8 @@ class PyAccess(object):
         images
 
         :param xy: The pixel coordinate, given as (x, y).
+        :returns: a pixel value for single band images, a tuple of
+          pixel values for multiband images.
         """
 
         (x, y) = self.check_xy(xy)
@@ -192,7 +202,7 @@ class _PyAccessI16_L(PyAccess):
         pixel = self.pixels[y][x]
         try:
             color = min(color, 65535)
-        except:
+        except TypeError:
             color = min(color[0], 65535)
 
         pixel.l = color & 0xFF
@@ -271,6 +281,7 @@ mode_map = {'1': _PyAccess8,
             'L': _PyAccess8,
             'P': _PyAccess8,
             'LA': _PyAccess32_2,
+            'La': _PyAccess32_2,
             'PA': _PyAccess32_2,
             'RGB': _PyAccess32_3,
             'LAB': _PyAccess32_3,
@@ -303,11 +314,6 @@ else:
 def new(img, readonly=False):
     access_type = mode_map.get(img.mode, None)
     if not access_type:
-        if DEBUG:
-            print("PyAccess Not Implemented: %s" % img.mode)
+        logger.debug("PyAccess Not Implemented: %s", img.mode)
         return None
-    if DEBUG:
-        print("New PyAccess: %s" % img.mode)
     return access_type(img, readonly)
-
-# End of file

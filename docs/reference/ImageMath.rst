@@ -13,7 +13,7 @@ Example: Using the :py:mod:`~PIL.ImageMath` module
 
 .. code-block:: python
 
-    import Image, ImageMath
+    from PIL import Image, ImageMath
 
     im1 = Image.open("image1.jpg")
     im2 = Image.open("image2.jpg")
@@ -27,7 +27,7 @@ Example: Using the :py:mod:`~PIL.ImageMath` module
 
     In the current version, :py:mod:`~PIL.ImageMath` only supports
     single-layer images. To process multi-band images, use the
-    :py:meth:`~PIL.Image.Image.split` method or :py:func:`~PIL.Image.merge` 
+    :py:meth:`~PIL.Image.Image.split` method or :py:func:`~PIL.Image.merge`
     function.
 
     :param expression: A string which uses the standard Python expression
@@ -81,13 +81,13 @@ Bitwise operators don’t work on floating point images.
 Logical Operators
 ^^^^^^^^^^^^^^^^^
 
-Logical operators like :keyword:`and`, :keyword:`or`, and :keyword:`not` work
+Logical operators like ``and``, ``or``, and ``not`` work
 on entire images, rather than individual pixels.
 
 An empty image (all pixels zero) is treated as false. All other images are
 treated as true.
 
-Note that :keyword:`and` and :keyword:`or` return the last evaluated operand,
+Note that ``and`` and ``or`` return the last evaluated operand,
 while not always returns a boolean value.
 
 Built-in Functions

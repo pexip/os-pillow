@@ -47,7 +47,7 @@ class BenchCffiAccess(PillowTestCase):
 
         self.assertEqual(caccess[(0, 0)], access[(0, 0)])
 
-        print ("Size: %sx%s" % im.size)
+        print("Size: %sx%s" % im.size)
         timer(iterate_get, 'PyAccess - get', im.size, access)
         timer(iterate_set, 'PyAccess - set', im.size, access)
         timer(iterate_get, 'C-api - get', im.size, caccess)
@@ -56,5 +56,3 @@ class BenchCffiAccess(PillowTestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
-# End of file

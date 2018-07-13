@@ -1,7 +1,7 @@
 # The Python Imaging Library.
 # $Id$
 
-# Optional color managment support, based on Kevin Cazabon's PyCMS
+# Optional color management support, based on Kevin Cazabon's PyCMS
 # library.
 
 # History:
@@ -16,6 +16,17 @@
 # below for the original description.
 
 from __future__ import print_function
+import sys
+
+from PIL import Image
+try:
+    from PIL import _imagingcms
+except ImportError as ex:
+    # Allow error import for doc purposes, but error out when accessing
+    # anything in core.
+    from _util import deferred_error
+    _imagingcms = deferred_error(ex)
+from PIL._util import isStringType
 
 DESCRIPTION = """
 pyCMS
@@ -64,7 +75,7 @@ pyCMS
 
         0.0.2 alpha     Jan 6, 2002
 
-                        Added try/except statements arount type() checks of
+                        Added try/except statements around type() checks of
                         potential CObjects... Python won't let you use type()
                         on them, and raises a TypeError (stupid, if you ask
                         me!)
@@ -83,16 +94,6 @@ pyCMS
 VERSION = "1.0.0 pil"
 
 # --------------------------------------------------------------------.
-
-from PIL import Image
-try:
-    from PIL import _imagingcms
-except ImportError as ex:
-    # Allow error import for doc purposes, but error out when accessing
-    # anything in core.
-    from _util import import_err
-    _imagingcms = import_err(ex)
-from PIL._util import isStringType
 
 core = _imagingcms
 
@@ -123,8 +124,8 @@ FLAGS = {
     "NOTCACHE": 64,  # Inhibit 1-pixel cache
     "NOTPRECALC": 256,
     "NULLTRANSFORM": 512,  # Don't transform anyway
-    "HIGHRESPRECALC": 1024,  # Use more memory to give better accurancy
-    "LOWRESPRECALC": 2048,  # Use less memory to minimize resouces
+    "HIGHRESPRECALC": 1024,  # Use more memory to give better accuracy
+    "LOWRESPRECALC": 2048,  # Use less memory to minimize resources
     "WHITEBLACKCOMPENSATION": 8192,
     "BLACKPOINTCOMPENSATION": 8192,
     "GAMUTCHECK": 4096,  # Out of Gamut alarm
@@ -147,7 +148,7 @@ for flag in FLAGS.values():
 ##
 # Profile.
 
-class ImageCmsProfile:
+class ImageCmsProfile(object):
 
     def __init__(self, profile):
         """
@@ -161,8 +162,11 @@ class ImageCmsProfile:
             self._set(core.profile_open(profile), profile)
         elif hasattr(profile, "read"):
             self._set(core.profile_frombytes(profile.read()))
+        elif isinstance(profile, _imagingcms.CmsProfile):
+            self._set(profile)
         else:
-            self._set(profile)  # assume it's already a profile
+            raise TypeError("Invalid type for Profile")
+        
 
     def _set(self, profile, filename=None):
         self.profile = profile
@@ -187,10 +191,12 @@ class ImageCmsProfile:
 
 class ImageCmsTransform(Image.ImagePointHandler):
 
-    # Transform.  This can be used with the procedural API, or with the
-    # standard Image.point() method.
-    #
-    # Will return the output profile in the output.info['icc_profile'].
+    """
+    Transform.  This can be used with the procedural API, or with the standard
+    Image.point() method.
+
+    Will return the output profile in the output.info['icc_profile'].
+    """
 
     def __init__(self, input, output, input_mode, output_mode,
                  intent=INTENT_PERCEPTUAL, proof=None,
@@ -240,7 +246,6 @@ def get_display_profile(handle=None):
     :returns: None if the profile is not known.
     """
 
-    import sys
     if sys.platform == "win32":
         from PIL import ImageWin
         if isinstance(handle, ImageWin.HDC):
@@ -573,7 +578,7 @@ def applyTransform(im, transform, inPlace=0):
     This function applies a pre-calculated transform (from
     ImageCms.buildTransform() or ImageCms.buildTransformFromOpenProfiles())
     to an image.  The transform can be used for multiple images, saving
-    considerable calcuation time if doing the same conversion multiple times.
+    considerable calculation time if doing the same conversion multiple times.
 
     If you want to modify im in-place instead of receiving a new image as
     the return value, set inPlace to TRUE.  This can only be done if
@@ -590,7 +595,8 @@ def applyTransform(im, transform, inPlace=0):
         with the transform applied is returned (and im is not changed). The
         default is False.
     :returns: Either None, or a new PIL Image object, depending on the value of
-        inPlace. The profile will be returned in the image's info['icc_profile'].
+        inPlace. The profile will be returned in the image's
+        info['icc_profile'].
     :exception PyCMSError:
     """
 
@@ -858,7 +864,7 @@ def getDefaultIntent(profile):
     If an error occurs while trying to obtain the default intent, a
     PyCMSError is raised.
 
-    Use this function to determine the default (and usually best optomized)
+    Use this function to determine the default (and usually best optimized)
     rendering intent for this profile.  Most profiles support multiple
     rendering intents, but are intended mostly for one type of conversion.
     If you wish to use a different intent than returned, use
@@ -914,7 +920,7 @@ def isIntentSupported(profile, intent, direction):
 
         see the pyCMS documentation for details on rendering intents and what
             they do.
-    :param direction: Integer specifing if the profile is to be used for input,
+    :param direction: Integer specifying if the profile is to be used for input,
         output, or proof
 
             INPUT  = 0 (or use ImageCms.DIRECTION_INPUT)
@@ -943,7 +949,6 @@ def versions():
     (pyCMS) Fetches versions.
     """
 
-    import sys
     return (
         VERSION, core.littlecms_version,
         sys.version.split()[0], Image.VERSION
@@ -954,10 +959,9 @@ def versions():
 if __name__ == "__main__":
     # create a cheap manual from the __doc__ strings for the functions above
 
-    from PIL import ImageCms
     print(__doc__)
 
-    for f in dir(ImageCms):
+    for f in dir(sys.modules[__name__]):
         doc = None
         try:
             exec("doc = %s.__doc__" % (f))
@@ -968,5 +972,3 @@ if __name__ == "__main__":
                 print(doc)
         except (AttributeError, TypeError):
             pass
-
-# End of file

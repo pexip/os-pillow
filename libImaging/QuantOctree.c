@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 #include "QuantOctree.h"
 
@@ -53,6 +54,7 @@ static ColorCube
 new_color_cube(int r, int g, int b, int a) {
    ColorCube cube;
 
+   /* malloc check ok, small constant allocation */
    cube = malloc(sizeof(struct _ColorCube));
    if (!cube) return NULL;
 
@@ -60,6 +62,12 @@ new_color_cube(int r, int g, int b, int a) {
    cube->gBits = MAX(g, 0);
    cube->bBits = MAX(b, 0);
    cube->aBits = MAX(a, 0);
+
+   /* overflow check for size multiplication below */
+   if (cube->rBits + cube->gBits + cube->bBits + cube->aBits > 31) {
+       free(cube);
+       return NULL;
+   }
 
    /* the width of the cube for each dimension */
    cube->rWidth = 1<<cube->rBits;
@@ -76,6 +84,7 @@ new_color_cube(int r, int g, int b, int a) {
 
    /* the number of color buckets */
    cube->size = cube->rWidth * cube->gWidth * cube->bWidth * cube->aWidth;
+   /* malloc check ok, overflow checked above */
    cube->buckets = calloc(cube->size, sizeof(struct _ColorBucket));
 
    if (!cube->buckets) {
@@ -154,7 +163,11 @@ compare_bucket_count(const ColorBucket a, const ColorBucket b) {
 static ColorBucket
 create_sorted_color_palette(const ColorCube cube) {
    ColorBucket buckets;
-   buckets = malloc(sizeof(struct _ColorBucket)*cube->size);
+   if (cube->size > LONG_MAX / sizeof(struct _ColorBucket)) {
+       return NULL;
+   }
+   /* malloc check ok, calloc + overflow check above for memcpy */
+   buckets = calloc(cube->size, sizeof(struct _ColorBucket));
    if (!buckets) return NULL;
    memcpy(buckets, cube->buckets, sizeof(struct _ColorBucket)*cube->size);
 
@@ -280,7 +293,15 @@ void add_lookup_buckets(ColorCube cube, ColorBucket palette, long nColors, long 
 ColorBucket
 combined_palette(ColorBucket bucketsA, long nBucketsA, ColorBucket bucketsB, long nBucketsB) {
    ColorBucket result;
-   result = malloc(sizeof(struct _ColorBucket)*(nBucketsA+nBucketsB));
+   if (nBucketsA > LONG_MAX - nBucketsB ||
+       (nBucketsA+nBucketsB) > LONG_MAX / sizeof(struct _ColorBucket)) {
+       return NULL;
+   }
+   /* malloc check ok, overflow check above */
+   result = calloc(nBucketsA + nBucketsB, sizeof(struct _ColorBucket));
+   if (!result) {
+       return NULL;
+   }
    memcpy(result, bucketsA, sizeof(struct _ColorBucket) * nBucketsA);
    memcpy(&result[nBucketsA], bucketsB, sizeof(struct _ColorBucket) * nBucketsB);
    return result;
@@ -291,7 +312,8 @@ create_palette_array(const ColorBucket palette, unsigned int paletteLength) {
    Pixel *paletteArray;
    unsigned int i;
 
-   paletteArray = malloc(sizeof(Pixel)*paletteLength);
+   /* malloc check ok, calloc for overflow */
+   paletteArray = calloc(paletteLength, sizeof(Pixel));
    if (!paletteArray) return NULL;
 
    for (i=0; i<paletteLength; i++) {
@@ -345,7 +367,7 @@ int quantize_octree(Pixel *pixelData,
    /*
    Create two color cubes, one fine grained with 8x16x8=1024
    colors buckets and a coarse with 4x4x4=64 color buckets.
-   The coarse one guarantes that there are color buckets available for
+   The coarse one guarantees that there are color buckets available for
    the whole color range (assuming nQuantPixels > 64).
 
    For a quantization to 256 colors all 64 coarse colors will be used
@@ -385,7 +407,7 @@ int quantize_octree(Pixel *pixelData,
    /* remove the used fine colors from the coarse cube */
    subtract_color_buckets(coarseCube, paletteBucketsFine, nFineColors);
 
-   /* did the substraction cleared one or more coarse bucket? */
+   /* did the subtraction cleared one or more coarse bucket? */
    while (nCoarseColors > count_used_color_buckets(coarseCube)) {
       /* then we can use the free buckets for fine colors */
       nAlreadySubtracted = nFineColors;
@@ -405,6 +427,7 @@ int quantize_octree(Pixel *pixelData,
    paletteBucketsFine = NULL;
    free(paletteBucketsCoarse);
    paletteBucketsCoarse = NULL;
+   if (!paletteBuckets) goto error;
 
    /* add all coarse colors to our coarse lookup cube. */
    coarseLookupCube = new_color_cube(cubeBits[4], cubeBits[5],
@@ -421,8 +444,9 @@ int quantize_octree(Pixel *pixelData,
    /* add fine colors to the lookup cube */
    add_lookup_buckets(lookupCube, paletteBuckets, nFineColors, nCoarseColors);
 
-   /* create result pixles and map palatte indices */
-   qp = malloc(sizeof(Pixel)*nPixels);
+   /* create result pixels and map palette indices */
+   /* malloc check ok, calloc for overflow */
+   qp = calloc(nPixels, sizeof(Pixel));
    if (!qp) goto error;
    map_image_pixels(pixelData, nPixels, lookupCube, qp);
 
