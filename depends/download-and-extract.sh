@@ -1,5 +1,5 @@
-#!/bin/bash
-# Usage: ./download-and-extract.sh something.tar.gz https://example.com/something.tar.gz
+#!/bin/sh
+# Usage: ./download-and-extract.sh something https://example.com/something.tar.gz
 
 archive=$1
 url=$2

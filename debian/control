@@ -9,12 +9,14 @@ Build-Depends: debhelper (>= 9), tk-dev, dpkg-dev (>= 1.16.1~),
   python3-all-dev, python3-all-dbg, python3-setuptools,
   python-tk, python-tk-dbg,
   python3-tk, python3-tk-dbg,
-  python-nose, python3-nose,
-#  python-olefile, python3-olefile,
+  python-pytest, python3-pytest,
+  python-olefile, python3-olefile,
   libfreetype6-dev, libjpeg-dev, zlib1g-dev, liblcms2-dev,
-  libtiff5-dev | libtiff-dev, libwebp-dev
+  libtiff5-dev | libtiff-dev, libwebp-dev, libraqm-dev,
+  libimagequant-dev,
+Build-Depends-Indep: python3-sphinx, python3-sphinx-rtd-theme,
 Build-Conflicts: python-cffi, python3-cffi
-Standards-Version: 3.9.8
+Standards-Version: 4.3.0
 Homepage: http://python-pillow.github.io/
 XS-Testsuite: autopkgtest
 
@@ -23,6 +25,7 @@ Architecture: any
 Multi-Arch: same
 Depends: ${python:Depends}, mime-support | python-pil.imagetk,
   ${shlibs:Depends}, ${misc:Depends}
+Recommends: python-olefile
 Suggests: python-pil-doc, python-pil-dbg
 Provides: ${python:Provides}, python-pillow
 Breaks: python-imaging (<< 1.1.7+2.0.0-1.1),
@@ -54,7 +57,7 @@ Description: Python Imaging Library (Pillow fork)
 
 Package: python-pil-dbg
 Section: debug
-Priority: extra
+Priority: optional
 Architecture: any
 Multi-Arch: same
 Depends: python-pil (= ${binary:Version}), python-dbg,
@@ -83,7 +86,7 @@ Description: Python Imaging Library - ImageTk Module (Pillow fork)
 
 Package: python-pil.imagetk-dbg
 Section: debug
-Priority: extra
+Priority: optional
 Architecture: any
 Multi-Arch: same
 Depends: python-pil.imagetk (= ${binary:Version}),
@@ -102,6 +105,7 @@ Architecture: any
 Multi-Arch: same
 Depends: ${python3:Depends}, mime-support | python3-pil.imagetk,
   ${shlibs:Depends}, ${misc:Depends}
+Recommends: python3-olefile
 Suggests: python-pil-doc, python3-pil-dbg
 Provides: ${python:Provides}, python3-pillow
 Conflicts: python3-imaging (<< 1.1.7+2.0.0-1.1)
@@ -132,7 +136,7 @@ Description: Python Imaging Library (Python3)
 
 Package: python3-pil-dbg
 Section: debug
-Priority: extra
+Priority: optional
 Architecture: any
 Multi-Arch: same
 Depends: python3-pil (= ${binary:Version}), python3-dbg,
@@ -161,8 +165,9 @@ Description: Python Imaging Library - ImageTk Module (Python3)
 
 Package: python3-pil.imagetk-dbg
 Section: debug
-Priority: extra
+Priority: optional
 Architecture: any
+Multi-Arch: same
 Depends: python3-pil.imagetk (= ${binary:Version}),
   python3-pil-dbg (= ${binary:Version}),
   python3-dbg, ${shlibs:Depends}, ${misc:Depends}
@@ -177,12 +182,8 @@ Package: python-pil-doc
 Section: doc
 Architecture: all
 Multi-Arch: foreign
-Depends: ${misc:Depends}
-Suggests: python-pil-doc-html, python-pil-doc-pdf,
-  python-doc, python3-pil | python-pil, python3-pil.imagetk | python-pil.imagetk
-Provides: python-imaging-doc
-Breaks: python-imaging-doc (<< 1.1.7+2.0.0-1.1)
-Replaces: python-imaging-doc (<< 1.1.7+2.0.0-1.1)
+Depends: ${misc:Depends}, ${sphinxdoc:Depends}
+Suggests: python-doc, python3-pil | python-pil, python3-pil.imagetk | python-pil.imagetk
 Description: Examples for the Python Imaging Library
  The Python Imaging Library (PIL) adds an image object to your
  Python interpreter. You can load image objects from a variety of file
@@ -192,15 +193,3 @@ Description: Examples for the Python Imaging Library
  You may also want to look at the python-pil-doc-html or
  python-pil-doc-pdf packages for the PIL handbook documentation.
 
-Package: python-imaging
-Architecture: all
-Depends: ${python:Depends}, ${misc:Depends}, python-pil
-Conflicts: python-imaging-compat (<< 1.1.7+2.0.0-1.1)
-Breaks: python-imaging-compat (<< 1.1.7+2.0.0-1.1)
-Replaces: python-imaging-compat (<< 1.1.7+2.0.0-1.1)
-Description: Python Imaging Library compatibility layer
- PIL used to provide a PIL.pth file which allowed you to `import Image` but
- this is deprecated.  Use `from PIL import Image` now, or install this
- compatibility package to temporarily get the old behavior back.
- .
- This compatibility package is built for Python 2 only.

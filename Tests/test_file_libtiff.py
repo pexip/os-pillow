@@ -1,11 +1,14 @@
 from __future__ import print_function
-from helper import unittest, PillowTestCase, hopper, py3
+from helper import unittest, PillowTestCase, hopper
+from PIL import features
+from PIL._util import py3
 
 from ctypes import c_float
 import io
 import logging
 import itertools
 import os
+import distutils.version
 
 from PIL import Image, TiffImagePlugin, TiffTags
 
@@ -15,9 +18,7 @@ logger = logging.getLogger(__name__)
 class LibTiffTestCase(PillowTestCase):
 
     def setUp(self):
-        codecs = dir(Image.core)
-
-        if "libtiff_encoder" not in codecs or "libtiff_decoder" not in codecs:
+        if not features.check('libtiff'):
             self.skipTest("tiff support not available")
 
     def _assert_noerr(self, im):
@@ -31,7 +32,7 @@ class LibTiffTestCase(PillowTestCase):
 
         try:
             self.assertEqual(im._compression, 'group4')
-        except:
+        except AttributeError:
             print("No _compression")
             print(dir(im))
 
@@ -41,6 +42,7 @@ class LibTiffTestCase(PillowTestCase):
 
         out_bytes = io.BytesIO()
         im.save(out_bytes, format='tiff', compression='group4')
+
 
 class TestFileLibTiff(LibTiffTestCase):
 
@@ -125,6 +127,9 @@ class TestFileLibTiff(LibTiffTestCase):
             im.tile[0][:3], ('tiff_adobe_deflate', (0, 0, 278, 374), 0))
         im.load()
 
+        self.assert_image_equal_tofile(im,
+                                       'Tests/images/tiff_adobe_deflate.png')
+
     def test_write_metadata(self):
         """ Test metadata writing through libtiff """
         for legacy_api in [False, True]:
@@ -172,8 +177,7 @@ class TestFileLibTiff(LibTiffTestCase):
                                 'RowsPerStrip',
                                 'StripOffsets']
             for field in requested_fields:
-                self.assertTrue(field in reloaded,
-                                "%s not in metadata" % field)
+                self.assertIn(field, reloaded, "%s not in metadata" % field)
 
     def test_additional_metadata(self):
         # these should not crash. Seriously dummy data, most of it doesn't make
@@ -189,10 +193,10 @@ class TestFileLibTiff(LibTiffTestCase):
         # Exclude ones that have special meaning
         # that we're already testing them
         im = Image.open('Tests/images/hopper_g4.tif')
-        for tag in im.tag_v2.keys():
+        for tag in im.tag_v2:
             try:
                 del(core_items[tag])
-            except:
+            except KeyError:
                 pass
 
         # Type codes:
@@ -215,7 +219,8 @@ class TestFileLibTiff(LibTiffTestCase):
             if info.length == 0:
                 new_ifd[tag] = tuple(values[info.type] for _ in range(3))
             else:
-                new_ifd[tag] = tuple(values[info.type] for _ in range(info.length))
+                new_ifd[tag] = tuple(values[info.type]
+                                     for _ in range(info.length))
 
         # Extra samples really doesn't make sense in this application.
         del(new_ifd[338])
@@ -226,6 +231,47 @@ class TestFileLibTiff(LibTiffTestCase):
         im.save(out, tiffinfo=new_ifd)
 
         TiffImagePlugin.WRITE_LIBTIFF = False
+
+    def test_custom_metadata(self):
+        custom = {
+            37000: 4,
+            37001: 4.2,
+            37002: 'custom tag value',
+            37003: u'custom tag value',
+            37004: b'custom tag value'
+        }
+
+        libtiff_version = TiffImagePlugin._libtiff_version()
+
+        libtiffs = [False]
+        if distutils.version.StrictVersion(libtiff_version) >= \
+           distutils.version.StrictVersion("4.0"):
+            libtiffs.append(True)
+
+        for libtiff in libtiffs:
+            TiffImagePlugin.WRITE_LIBTIFF = libtiff
+
+            im = hopper()
+
+            out = self.tempfile("temp.tif")
+            im.save(out, tiffinfo=custom)
+            TiffImagePlugin.WRITE_LIBTIFF = False
+
+            reloaded = Image.open(out)
+            for tag, value in custom.items():
+                if libtiff and isinstance(value, bytes):
+                    value = value.decode()
+                self.assertEqual(reloaded.tag_v2[tag], value)
+
+    def test_int_dpi(self):
+        # issue #1765
+        im = hopper('RGB')
+        out = self.tempfile('temp.tif')
+        TiffImagePlugin.WRITE_LIBTIFF = True
+        im.save(out, dpi=(72, 72))
+        TiffImagePlugin.WRITE_LIBTIFF = False
+        reloaded = Image.open(out)
+        self.assertEqual(reloaded.info['dpi'], (72.0, 72.0))
 
     def test_g3_compression(self):
         i = Image.open('Tests/images/hopper_g4_500.tif')
@@ -310,12 +356,7 @@ class TestFileLibTiff(LibTiffTestCase):
         # imagemagick will auto scale so that a 12bit FFF is 16bit FFF0,
         # so we need to unshift so that the integer values are the same.
 
-        im2 = Image.open('Tests/images/12in16bit.tif')
-
-        logger.debug("%s", [img.getpixel((0, idx))
-                            for img in [im, im2] for idx in range(3)])
-
-        self.assert_image_equal(im, im2)
+        self.assert_image_equal_tofile(im, 'Tests/images/12in16bit.tif')
 
     def test_blur(self):
         # test case from irc, how to do blur on b/w image
@@ -362,10 +403,9 @@ class TestFileLibTiff(LibTiffTestCase):
         im = hopper('RGB')
         out = self.tempfile('temp.tif')
 
-        self.assertRaises(
-            IOError, lambda: im.save(out, compression='tiff_ccitt'))
-        self.assertRaises(IOError, lambda: im.save(out, compression='group3'))
-        self.assertRaises(IOError, lambda: im.save(out, compression='group4'))
+        self.assertRaises(IOError, im.save, out, compression='tiff_ccitt')
+        self.assertRaises(IOError, im.save, out, compression='group3')
+        self.assertRaises(IOError, im.save, out, compression='group4')
 
     def test_fp_leak(self):
         im = Image.open("Tests/images/hopper_g4_500.tif")
@@ -373,10 +413,10 @@ class TestFileLibTiff(LibTiffTestCase):
 
         os.fstat(fn)
         im.load()  # this should close it.
-        self.assertRaises(OSError, lambda: os.fstat(fn))
+        self.assertRaises(OSError, os.fstat, fn)
         im = None  # this should force even more closed.
-        self.assertRaises(OSError, lambda: os.fstat(fn))
-        self.assertRaises(OSError, lambda: os.close(fn))
+        self.assertRaises(OSError, os.fstat, fn)
+        self.assertRaises(OSError, os.close, fn)
 
     def test_multipage(self):
         # issue #862
@@ -398,6 +438,19 @@ class TestFileLibTiff(LibTiffTestCase):
         self.assertFalse(im.tag.next)
         self.assertEqual(im.size, (20, 20))
         self.assertEqual(im.convert('RGB').getpixel((0, 0)), (0, 0, 255))
+
+        TiffImagePlugin.READ_LIBTIFF = False
+
+    def test_multipage_nframes(self):
+        # issue #862
+        TiffImagePlugin.READ_LIBTIFF = True
+        im = Image.open('Tests/images/multipage.tiff')
+        frames = im.n_frames
+        self.assertEqual(frames, 3)
+        for _ in range(frames):
+            im.seek(0)
+            # Should not raise ValueError: I/O operation on closed file
+            im.load()
 
         TiffImagePlugin.READ_LIBTIFF = False
 
@@ -475,7 +528,7 @@ class TestFileLibTiff(LibTiffTestCase):
             pilim_load = Image.open(buffer_io)
             self.assert_image_similar(pilim, pilim_load, 0)
 
-        # save_bytesio()
+        save_bytesio()
         save_bytesio('raw')
         save_bytesio("packbits")
         save_bytesio("tiff_lzw")
@@ -516,21 +569,19 @@ class TestFileLibTiff(LibTiffTestCase):
                 f.write(src.read())
 
         im = Image.open(tmpfile)
-        count = im.n_frames
+        im.n_frames
         im.close()
-        try:
-            os.remove(tmpfile) # Windows PermissionError here!
-        except:
-            self.fail("Should not get permission error here")
+        # Should not raise PermissionError.
+        os.remove(tmpfile)
 
     def test_read_icc(self):
         with Image.open("Tests/images/hopper.iccprofile.tif") as img:
             icc = img.info.get('icc_profile')
-            self.assertNotEqual(icc, None)
+            self.assertIsNotNone(icc)
         TiffImagePlugin.READ_LIBTIFF = True
         with Image.open("Tests/images/hopper.iccprofile.tif") as img:
             icc_libtiff = img.info.get('icc_profile')
-            self.assertNotEqual(icc_libtiff, None)
+            self.assertIsNotNone(icc_libtiff)
         TiffImagePlugin.READ_LIBTIFF = False
         self.assertEqual(icc, icc_libtiff)
 
@@ -564,19 +615,91 @@ class TestFileLibTiff(LibTiffTestCase):
         # Should not raise UnicodeDecodeError or anything else
         im.save(outfile)
 
-    def test_page_number_x_0(self):
-        # Issue 973
-        # Test TIFF with tag 297 (Page Number) having value of 0 0.
-        # The first number is the current page number.
-        # The second is the total number of pages, zero means not available.
-        outfile = self.tempfile("temp.tif")
-        # Created by printing a page in Chrome to PDF, then:
-        # /usr/bin/gs -q -sDEVICE=tiffg3 -sOutputFile=total-pages-zero.tif
-        # -dNOPAUSE /tmp/test.pdf -c quit
-        infile = "Tests/images/total-pages-zero.tif"
+    def test_16bit_RGBa_tiff(self):
+        im = Image.open("Tests/images/tiff_16bit_RGBa.tiff")
+
+        self.assertEqual(im.mode, "RGBA")
+        self.assertEqual(im.size, (100, 40))
+        self.assertEqual(
+            im.tile,
+            [('tiff_lzw', (0, 0, 100, 40), 0, ('RGBa;16N', 'tiff_lzw', False))]
+        )
+        im.load()
+
+        self.assert_image_equal_tofile(
+            im, "Tests/images/tiff_16bit_RGBa_target.png")
+
+    def test_gimp_tiff(self):
+        # Read TIFF JPEG images from GIMP [@PIL168]
+
+        codecs = dir(Image.core)
+        if "jpeg_decoder" not in codecs:
+            self.skipTest("jpeg support not available")
+
+        filename = "Tests/images/pil168.tif"
+        im = Image.open(filename)
+
+        self.assertEqual(im.mode, "RGB")
+        self.assertEqual(im.size, (256, 256))
+        self.assertEqual(
+            im.tile, [('jpeg', (0, 0, 256, 256), 0, ('RGB', 'jpeg', False))]
+        )
+        im.load()
+
+        self.assert_image_equal_tofile(im, "Tests/images/pil168.png")
+
+    def test_sampleformat(self):
+        # https://github.com/python-pillow/Pillow/issues/1466
+        im = Image.open("Tests/images/copyleft.tiff")
+        self.assertEqual(im.mode, 'RGB')
+
+        self.assert_image_equal_tofile(im, "Tests/images/copyleft.png",
+                                       mode='RGB')
+
+    def test_lzw(self):
+        im = Image.open("Tests/images/hopper_lzw.tif")
+
+        self.assertEqual(im.mode, 'RGB')
+        self.assertEqual(im.size, (128, 128))
+        self.assertEqual(im.format, "TIFF")
+        im2 = hopper()
+        self.assert_image_similar(im, im2, 5)
+
+    def test_strip_cmyk_jpeg(self):
+        infile = "Tests/images/tiff_strip_cmyk_jpeg.tif"
         im = Image.open(infile)
-        # Should not divide by zero
-        im.save(outfile)
+
+        self.assert_image_similar_tofile(im, "Tests/images/pil_sample_cmyk.jpg", 0.5)
+
+    def test_strip_ycbcr_jpeg_2x2_sampling(self):
+        infile = "Tests/images/tiff_strip_ycbcr_jpeg_2x2_sampling.tif"
+        im = Image.open(infile)
+
+        self.assert_image_similar_tofile(im, "Tests/images/flower.jpg", 0.5)
+
+    def test_strip_ycbcr_jpeg_1x1_sampling(self):
+        infile = "Tests/images/tiff_strip_ycbcr_jpeg_1x1_sampling.tif"
+        im = Image.open(infile)
+
+        self.assert_image_equal_tofile(im, "Tests/images/flower2.jpg")
+
+    def test_tiled_cmyk_jpeg(self):
+        infile = "Tests/images/tiff_tiled_cmyk_jpeg.tif"
+        im = Image.open(infile)
+
+        self.assert_image_similar_tofile(im, "Tests/images/pil_sample_cmyk.jpg", 0.5)
+
+    def test_tiled_ycbcr_jpeg_1x1_sampling(self):
+        infile = "Tests/images/tiff_tiled_ycbcr_jpeg_1x1_sampling.tif"
+        im = Image.open(infile)
+
+        self.assert_image_equal_tofile(im, "Tests/images/flower2.jpg")
+
+    def test_tiled_ycbcr_jpeg_2x2_sampling(self):
+        infile = "Tests/images/tiff_tiled_ycbcr_jpeg_2x2_sampling.tif"
+        im = Image.open(infile)
+
+        self.assert_image_similar_tofile(im, "Tests/images/flower.jpg", 0.5)
 
 
 if __name__ == '__main__':

@@ -1,13 +1,19 @@
-from helper import unittest, PillowTestCase, hopper
+from helper import unittest, PillowTestCase, PillowLeakTestCase, hopper
+from PIL import Image, ImageFile, PngImagePlugin
+from PIL._util import py3
 
 from io import BytesIO
-
-from PIL import Image
-from PIL import ImageFile
-from PIL import PngImagePlugin
 import zlib
+import sys
+
+try:
+    from PIL import _webp
+    HAVE_WEBP = True
+except ImportError:
+    HAVE_WEBP = False
 
 codecs = dir(Image.core)
+
 
 # sample png stream
 
@@ -22,6 +28,7 @@ def chunk(cid, *data):
     test_file = BytesIO()
     PngImagePlugin.putchunk(*(test_file, cid) + data)
     return test_file.getvalue()
+
 
 o32 = PngImagePlugin.o32
 
@@ -50,11 +57,25 @@ class TestFilePng(PillowTestCase):
         if "zip_encoder" not in codecs or "zip_decoder" not in codecs:
             self.skipTest("zip/deflate support not available")
 
+    def get_chunks(self, filename):
+        chunks = []
+        with open(filename, "rb") as fp:
+            fp.read(8)
+            with PngImagePlugin.PngStream(fp) as png:
+                while True:
+                    cid, pos, length = png.read()
+                    chunks.append(cid)
+                    try:
+                        s = png.call(cid, pos, length)
+                    except EOFError:
+                        break
+                    png.crc(cid, s)
+        return chunks
+
     def test_sanity(self):
 
         # internal version number
-        self.assertRegexpMatches(
-            Image.core.zlib_version, r"\d+\.\d+\.\d+(\.\d+)?$")
+        self.assertRegex(Image.core.zlib_version, r"\d+\.\d+\.\d+(\.\d+)?$")
 
         test_file = self.tempfile("temp.png")
 
@@ -65,34 +86,35 @@ class TestFilePng(PillowTestCase):
         self.assertEqual(im.mode, "RGB")
         self.assertEqual(im.size, (128, 128))
         self.assertEqual(im.format, "PNG")
+        self.assertEqual(im.get_format_mimetype(), 'image/png')
 
         hopper("1").save(test_file)
-        im = Image.open(test_file)
+        Image.open(test_file)
 
         hopper("L").save(test_file)
-        im = Image.open(test_file)
+        Image.open(test_file)
 
         hopper("P").save(test_file)
-        im = Image.open(test_file)
+        Image.open(test_file)
 
         hopper("RGB").save(test_file)
-        im = Image.open(test_file)
+        Image.open(test_file)
 
         hopper("I").save(test_file)
-        im = Image.open(test_file)
+        Image.open(test_file)
 
     def test_invalid_file(self):
         invalid_file = "Tests/images/flower.jpg"
 
         self.assertRaises(SyntaxError,
-                          lambda: PngImagePlugin.PngImageFile(invalid_file))
+                          PngImagePlugin.PngImageFile, invalid_file)
 
     def test_broken(self):
         # Check reading of totally broken files.  In this case, the test
         # file was checked into Subversion as a text file.
 
         test_file = "Tests/images/broken.png"
-        self.assertRaises(IOError, lambda: Image.open(test_file))
+        self.assertRaises(IOError, Image.open, test_file)
 
     def test_bad_text(self):
         # Make sure PIL can read malformed tEXt chunks (@PIL152)
@@ -198,7 +220,7 @@ class TestFilePng(PillowTestCase):
         self.assert_image(im, "RGBA", (162, 150))
 
         # image has 124 unique alpha values
-        self.assertEqual(len(im.split()[3].getcolors()), 124)
+        self.assertEqual(len(im.getchannel('A').getcolors()), 124)
 
     def test_load_transparent_rgb(self):
         test_file = "Tests/images/rgb_trns.png"
@@ -210,7 +232,7 @@ class TestFilePng(PillowTestCase):
         self.assert_image(im, "RGBA", (64, 64))
 
         # image has 876 transparent pixels
-        self.assertEqual(im.split()[3].getcolors()[0][0], 876)
+        self.assertEqual(im.getchannel('A').getcolors()[0][0], 876)
 
     def test_save_p_transparent_palette(self):
         in_file = "Tests/images/pil123p.png"
@@ -232,7 +254,7 @@ class TestFilePng(PillowTestCase):
         self.assert_image(im, "RGBA", (162, 150))
 
         # image has 124 unique alpha values
-        self.assertEqual(len(im.split()[3].getcolors()), 124)
+        self.assertEqual(len(im.getchannel('A').getcolors()), 124)
 
     def test_save_p_single_transparency(self):
         in_file = "Tests/images/p_trns_single.png"
@@ -256,7 +278,7 @@ class TestFilePng(PillowTestCase):
         self.assertEqual(im.getpixel((31, 31)), (0, 255, 52, 0))
 
         # image has 876 transparent pixels
-        self.assertEqual(im.split()[3].getcolors()[0][0], 876)
+        self.assertEqual(im.getchannel('A').getcolors()[0][0], 876)
 
     def test_save_p_transparent_black(self):
         # check if solid black image with full transparency
@@ -277,15 +299,29 @@ class TestFilePng(PillowTestCase):
         self.assertEqual(im.getcolors(), [(100, (0, 0, 0, 0))])
 
     def test_save_l_transparency(self):
+        # There are 559 transparent pixels in l_trns.png.
+        num_transparent = 559
+
         in_file = "Tests/images/l_trns.png"
         im = Image.open(in_file)
+        self.assertEqual(im.mode, "L")
+        self.assertEqual(im.info["transparency"], 255)
+
+        im_rgba = im.convert('RGBA')
+        self.assertEqual(
+            im_rgba.getchannel("A").getcolors()[0][0], num_transparent)
 
         test_file = self.tempfile("temp.png")
         im.save(test_file)
 
-        # There are 559 transparent pixels.
-        im = im.convert('RGBA')
-        self.assertEqual(im.split()[3].getcolors()[0][0], 559)
+        test_im = Image.open(test_file)
+        self.assertEqual(test_im.mode, "L")
+        self.assertEqual(test_im.info["transparency"], 255)
+        self.assert_image_equal(im, test_im)
+
+        test_im_rgba = test_im.convert('RGBA')
+        self.assertEqual(
+            test_im_rgba.getchannel('A').getcolors()[0][0], num_transparent)
 
     def test_save_rgb_single_transparency(self):
         in_file = "Tests/images/caption_6_33_22.png"
@@ -298,7 +334,9 @@ class TestFilePng(PillowTestCase):
         # Check open/load/verify exception (@PIL150)
 
         im = Image.open(TEST_PNG_FILE)
-        im.verify()
+
+        # Assert that there is no unclosed file warning
+        self.assert_warning(None, im.verify)
 
         im = Image.open(TEST_PNG_FILE)
         im.load()
@@ -316,7 +354,7 @@ class TestFilePng(PillowTestCase):
                 test_file = f.read()[:offset]
 
             im = Image.open(BytesIO(test_file))
-            self.assertTrue(im.fp is not None)
+            self.assertIsNotNone(im.fp)
             self.assertRaises((IOError, SyntaxError), im.verify)
 
     def test_verify_ignores_crc_error(self):
@@ -326,12 +364,13 @@ class TestFilePng(PillowTestCase):
         broken_crc_chunk_data = chunk_data[:-1] + b'q'  # break CRC
 
         image_data = HEAD + broken_crc_chunk_data + TAIL
-        self.assertRaises(SyntaxError, PngImagePlugin.PngImageFile, BytesIO(image_data))
+        self.assertRaises(SyntaxError, PngImagePlugin.PngImageFile,
+                          BytesIO(image_data))
 
         ImageFile.LOAD_TRUNCATED_IMAGES = True
         try:
             im = load(image_data)
-            self.assertTrue(im is not None)
+            self.assertIsNotNone(im)
         finally:
             ImageFile.LOAD_TRUNCATED_IMAGES = False
 
@@ -342,7 +381,8 @@ class TestFilePng(PillowTestCase):
 
         ImageFile.LOAD_TRUNCATED_IMAGES = True
         try:
-            self.assertRaises(SyntaxError, PngImagePlugin.PngImageFile, BytesIO(image_data))
+            self.assertRaises(SyntaxError, PngImagePlugin.PngImageFile,
+                              BytesIO(image_data))
         finally:
             ImageFile.LOAD_TRUNCATED_IMAGES = False
 
@@ -361,7 +401,7 @@ class TestFilePng(PillowTestCase):
 
         info = PngImagePlugin.PngInfo()
         info.add_text("TXT", "VALUE")
-        info.add_text("ZIP", "VALUE", 1)
+        info.add_text("ZIP", "VALUE", zip=True)
 
         im = roundtrip(im, pnginfo=info)
         self.assertEqual(im.info, {'TXT': 'VALUE', 'ZIP': 'VALUE'})
@@ -394,8 +434,8 @@ class TestFilePng(PillowTestCase):
         self.assertIsInstance(im.info["Text"], str)
 
     def test_unicode_text(self):
-        # Check preservation of non-ASCII characters on Python3
-        # This cannot really be meaningfully tested on Python2,
+        # Check preservation of non-ASCII characters on Python 3
+        # This cannot really be meaningfully tested on Python 2,
         # since it didn't preserve charsets to begin with.
 
         def rt_text(value):
@@ -405,7 +445,7 @@ class TestFilePng(PillowTestCase):
             im = roundtrip(im, pnginfo=info)
             self.assertEqual(im.info, {"Text": value})
 
-        if str is not bytes:
+        if py3:
             rt_text(" Aa" + chr(0xa0) + chr(0xc4) + chr(0xff))  # Latin1
             rt_text(chr(0x400) + chr(0x472) + chr(0x4ff))       # Cyrillic
             rt_text(chr(0x4e00) + chr(0x66f0) +                 # CJK
@@ -422,7 +462,7 @@ class TestFilePng(PillowTestCase):
             data = b'\x89' + fd.read()
 
         pngfile = BytesIO(data)
-        self.assertRaises(IOError, lambda: Image.open(pngfile))
+        self.assertRaises(IOError, Image.open, pngfile)
 
     def test_trns_rgb(self):
         # Check writing and reading of tRNS chunks for RGB images.
@@ -462,7 +502,7 @@ class TestFilePng(PillowTestCase):
 
     def test_save_icc_profile(self):
         im = Image.open("Tests/images/icc_profile_none.png")
-        self.assertEqual(im.info['icc_profile'], None)
+        self.assertIsNone(im.info['icc_profile'])
 
         with_icc = Image.open("Tests/images/icc_profile.png")
         expected_icc = with_icc.info['icc_profile']
@@ -485,7 +525,7 @@ class TestFilePng(PillowTestCase):
 
     def test_roundtrip_no_icc_profile(self):
         im = Image.open("Tests/images/icc_profile_none.png")
-        self.assertEqual(im.info['icc_profile'], None)
+        self.assertIsNone(im.info['icc_profile'])
 
         im = roundtrip(im)
         self.assertNotIn('icc_profile', im.info)
@@ -496,6 +536,95 @@ class TestFilePng(PillowTestCase):
         repr_png = Image.open(BytesIO(im._repr_png_()))
         self.assertEqual(repr_png.format, 'PNG')
         self.assert_image_equal(im, repr_png)
+
+    def test_chunk_order(self):
+        im = Image.open("Tests/images/icc_profile.png")
+        test_file = self.tempfile("temp.png")
+        im.convert("P").save(test_file, dpi=(100, 100))
+
+        chunks = self.get_chunks(test_file)
+
+        # https://www.w3.org/TR/PNG/#5ChunkOrdering
+        # IHDR - shall be first
+        self.assertEqual(chunks.index(b"IHDR"), 0)
+        # PLTE - before first IDAT
+        self.assertLess(chunks.index(b"PLTE"), chunks.index(b"IDAT"))
+        # iCCP - before PLTE and IDAT
+        self.assertLess(chunks.index(b"iCCP"), chunks.index(b"PLTE"))
+        self.assertLess(chunks.index(b"iCCP"), chunks.index(b"IDAT"))
+        # tRNS - after PLTE, before IDAT
+        self.assertGreater(chunks.index(b"tRNS"), chunks.index(b"PLTE"))
+        self.assertLess(chunks.index(b"tRNS"), chunks.index(b"IDAT"))
+        # pHYs - before IDAT
+        self.assertLess(chunks.index(b"pHYs"), chunks.index(b"IDAT"))
+
+    def test_getchunks(self):
+        im = hopper()
+
+        chunks = PngImagePlugin.getchunks(im)
+        self.assertEqual(len(chunks), 3)
+
+    def test_textual_chunks_after_idat(self):
+        im = Image.open("Tests/images/hopper.png")
+        self.assertIn('comment', im.text.keys())
+        for k, v in {
+            'date:create': '2014-09-04T09:37:08+03:00',
+            'date:modify': '2014-09-04T09:37:08+03:00',
+        }.items():
+            self.assertEqual(im.text[k], v)
+
+        # Raises a SyntaxError in load_end
+        im = Image.open("Tests/images/broken_data_stream.png")
+        with self.assertRaises(IOError):
+            self.assertIsInstance(im.text, dict)
+
+        # Raises a UnicodeDecodeError in load_end
+        im = Image.open("Tests/images/truncated_image.png")
+        # The file is truncated
+        self.assertRaises(IOError, lambda: im.text)
+        ImageFile.LOAD_TRUNCATED_IMAGES = True
+        self.assertIsInstance(im.text, dict)
+        ImageFile.LOAD_TRUNCATED_IMAGES = False
+
+        # Raises an EOFError in load_end
+        im = Image.open("Tests/images/hopper_idat_after_image_end.png")
+        self.assertEqual(im.text, {'TXT': 'VALUE', 'ZIP': 'VALUE'})
+
+    @unittest.skipUnless(HAVE_WEBP and _webp.HAVE_WEBPANIM,
+                         "WebP support not installed with animation")
+    def test_apng(self):
+        im = Image.open("Tests/images/iss634.apng")
+        self.assertEqual(im.get_format_mimetype(), 'image/apng')
+
+        expected = Image.open("Tests/images/iss634.webp")
+        self.assert_image_similar(im, expected, 0.23)
+
+
+@unittest.skipIf(sys.platform.startswith('win32'), "requires Unix or macOS")
+class TestTruncatedPngPLeaks(PillowLeakTestCase):
+    mem_limit = 2*1024  # max increase in K
+    iterations = 100  # Leak is 56k/iteration, this will leak 5.6megs
+
+    def setUp(self):
+        if "zip_encoder" not in codecs or "zip_decoder" not in codecs:
+            self.skipTest("zip/deflate support not available")
+
+    def test_leak_load(self):
+        with open('Tests/images/hopper.png', 'rb') as f:
+            DATA = BytesIO(f.read(16 * 1024))
+
+        ImageFile.LOAD_TRUNCATED_IMAGES = True
+        with Image.open(DATA) as im:
+            im.load()
+
+        def core():
+            with Image.open(DATA) as im:
+                im.load()
+
+        try:
+            self._test_leak(core)
+        finally:
+            ImageFile.LOAD_TRUNCATED_IMAGES = False
 
 
 if __name__ == '__main__':

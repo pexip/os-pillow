@@ -1,5 +1,3 @@
-from __future__ import division
-
 import io
 import struct
 
@@ -58,7 +56,8 @@ class TestFileTiffMetadata(PillowTestCase):
         loaded = Image.open(f)
 
         self.assertEqual(loaded.tag[ImageJMetaDataByteCounts], (len(bindata),))
-        self.assertEqual(loaded.tag_v2[ImageJMetaDataByteCounts], len(bindata))
+        self.assertEqual(loaded.tag_v2[ImageJMetaDataByteCounts],
+                         (len(bindata),))
 
         self.assertEqual(loaded.tag[ImageJMetaData], bindata)
         self.assertEqual(loaded.tag_v2[ImageJMetaData], bindata)
@@ -70,6 +69,17 @@ class TestFileTiffMetadata(PillowTestCase):
         self.assertAlmostEqual(loaded_float, floatdata, places=5)
         loaded_double = loaded.tag[tag_ids['YawAngle']][0]
         self.assertAlmostEqual(loaded_double, doubledata)
+
+        # check with 2 element ImageJMetaDataByteCounts, issue #2006
+
+        info[ImageJMetaDataByteCounts] = (8, len(bindata) - 8)
+        img.save(f, tiffinfo=info)
+        loaded = Image.open(f)
+
+        self.assertEqual(loaded.tag[ImageJMetaDataByteCounts],
+                         (8, len(bindata) - 8))
+        self.assertEqual(loaded.tag_v2[ImageJMetaDataByteCounts],
+                         (8, len(bindata) - 8))
 
     def test_read_metadata(self):
         img = Image.open('Tests/images/hopper_g4.tif')
@@ -125,9 +135,9 @@ class TestFileTiffMetadata(PillowTestCase):
         for k, v in original.items():
             if isinstance(v, IFDRational):
                 original[k] = IFDRational(*_limit_rational(v, 2**31))
-            if isinstance(v, tuple) and isinstance(v[0], IFDRational):
-                original[k] = tuple([IFDRational(
-                                     *_limit_rational(elt, 2**31)) for elt in v])
+            elif isinstance(v, tuple) and isinstance(v[0], IFDRational):
+                original[k] = tuple(IFDRational(*_limit_rational(elt, 2**31))
+                                    for elt in v)
 
         ignored = ['StripByteCounts', 'RowsPerStrip',
                    'PageNumber', 'StripOffsets']
@@ -162,10 +172,8 @@ class TestFileTiffMetadata(PillowTestCase):
         f = io.BytesIO(b'II*\x00\x08\x00\x00\x00')
         head = f.read(8)
         info = TiffImagePlugin.ImageFileDirectory(head)
-        try:
-            self.assert_warning(UserWarning, lambda: info.load(f))
-        except struct.error:
-            self.fail("Should not be struct errors there.")
+        # Should not raise struct.error.
+        self.assert_warning(UserWarning, info.load, f)
 
     def test_iccprofile(self):
         # https://github.com/python-pillow/Pillow/issues/1462
@@ -179,7 +187,8 @@ class TestFileTiffMetadata(PillowTestCase):
 
     def test_iccprofile_binary(self):
         # https://github.com/python-pillow/Pillow/issues/1526
-        # We should be able to load this, but probably won't be able to save it.
+        # We should be able to load this,
+        # but probably won't be able to save it.
 
         im = Image.open('Tests/images/hopper.iccprofile_binary.tif')
         self.assertEqual(im.tag_v2.tagtype[34675], 1)
@@ -204,8 +213,8 @@ class TestFileTiffMetadata(PillowTestCase):
         im.save(out, tiffinfo=info, compression='raw')
 
         reloaded = Image.open(out)
-        self.assertEqual(0, reloaded.tag_v2[41988][0].numerator)
-        self.assertEqual(0, reloaded.tag_v2[41988][0].denominator)
+        self.assertEqual(0, reloaded.tag_v2[41988].numerator)
+        self.assertEqual(0, reloaded.tag_v2[41988].denominator)
 
     def test_expty_values(self):
         data = io.BytesIO(
@@ -216,11 +225,28 @@ class TestFileTiffMetadata(PillowTestCase):
         head = data.read(8)
         info = TiffImagePlugin.ImageFileDirectory_v2(head)
         info.load(data)
-        try:
-            info = dict(info)
-        except ValueError:
-            self.fail("Should not be struct value error there.")
+        # Should not raise ValueError.
+        info = dict(info)
         self.assertIn(33432, info)
+
+    def test_PhotoshopInfo(self):
+        im = Image.open('Tests/images/issue_2278.tif')
+
+        self.assertIsInstance(im.tag_v2[34377], bytes)
+        out = self.tempfile('temp.tiff')
+        im.save(out)
+        reloaded = Image.open(out)
+        self.assertIsInstance(reloaded.tag_v2[34377], bytes)
+
+    def test_too_many_entries(self):
+        ifd = TiffImagePlugin.ImageFileDirectory_v2()
+
+        #    277: ("SamplesPerPixel", SHORT, 1),
+        ifd._tagdata[277] = struct.pack('hh', 4, 4)
+        ifd.tagtype[277] = TiffTags.SHORT
+
+        # Should not raise ValueError.
+        self.assert_warning(UserWarning, lambda: ifd[277])
 
 
 if __name__ == '__main__':

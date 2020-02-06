@@ -12,12 +12,12 @@ images.
 Examples
 --------
 
+Open, rotate, and display an image (using the default viewer)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 The following script loads an image, rotates it 45 degrees, and displays it
 using an external viewer (usually xv on Unix, and the paint program on
 Windows).
-
-Open, rotate, and display an image (using the default viewer)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: python
 
@@ -25,11 +25,11 @@ Open, rotate, and display an image (using the default viewer)
     im = Image.open("bride.jpg")
     im.rotate(45).show()
 
-The following script creates nice 128x128 thumbnails of all JPEG images in the
-current directory.
-
 Create thumbnails
 ^^^^^^^^^^^^^^^^^
+
+The following script creates nice thumbnails of all JPEG images in the
+current directory preserving aspect ratios with 128x128 max resolution.
 
 .. code-block:: python
 
@@ -59,7 +59,7 @@ Functions
         documentation`_ to have warnings output to the logging facility instead of stderr.
 
 	.. _decompression bombs: https://en.wikipedia.org/wiki/Zip_bomb
-	.. _the logging documentation: https://docs.python.org/2/library/logging.html?highlight=logging#integration-with-the-warnings-module
+	.. _the logging documentation: https://docs.python.org/3/library/logging.html#integration-with-the-warnings-module
 
 Image processing
 ^^^^^^^^^^^^^^^^
@@ -88,9 +88,12 @@ Registering plugins
     ignore them.
 
 .. autofunction:: register_open
+.. autofunction:: register_decoder
 .. autofunction:: register_mime
 .. autofunction:: register_save
+.. autofunction:: register_encoder
 .. autofunction:: register_extension
+
 
 The Image Class
 ---------------
@@ -101,6 +104,8 @@ An instance of the :py:class:`~PIL.Image.Image` class has the following
 methods. Unless otherwise stated, all methods return a new instance of the
 :py:class:`~PIL.Image.Image` class, holding the resulting image.
 
+
+.. automethod:: PIL.Image.Image.alpha_composite
 .. automethod:: PIL.Image.Image.convert
 
 The following example converts an RGB image (linearly calibrated according to
@@ -135,11 +140,13 @@ ITU-R 709, using the D65 luminant) to the CIE XYZ color space:
 .. automethod:: PIL.Image.Image.putpixel
 .. automethod:: PIL.Image.Image.quantize
 .. automethod:: PIL.Image.Image.resize
+.. automethod:: PIL.Image.Image.remap_palette
 .. automethod:: PIL.Image.Image.rotate
 .. automethod:: PIL.Image.Image.save
 .. automethod:: PIL.Image.Image.seek
 .. automethod:: PIL.Image.Image.show
 .. automethod:: PIL.Image.Image.split
+.. automethod:: PIL.Image.Image.getchannel
 .. automethod:: PIL.Image.Image.tell
 .. automethod:: PIL.Image.Image.thumbnail
 .. automethod:: PIL.Image.Image.tobitmap
@@ -158,6 +165,14 @@ Attributes
 ----------
 
 Instances of the :py:class:`Image` class have the following attributes:
+
+.. py:attribute:: filename
+
+    The filename or path of the source file. Only images created with the
+    factory function `open` have a filename attribute. If the input is a
+    file like object, the filename attribute is set to an empty string.
+
+    :type: :py:class: `string`
 
 .. py:attribute:: format
 

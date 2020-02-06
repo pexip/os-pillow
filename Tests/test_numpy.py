@@ -1,45 +1,25 @@
 from __future__ import print_function
-import sys
-from helper import unittest, PillowTestCase, hopper
 
+from helper import PillowTestCase, hopper, unittest
 from PIL import Image
 
 try:
-    import site
     import numpy
-    assert site  # silence warning
-    assert numpy  # silence warning
 except ImportError:
-    # Skip via setUp()
-    pass
+    numpy = None
+
 
 TEST_IMAGE_SIZE = (10, 10)
 
-# Numpy on pypy as of pypy 5.3.1 is corrupting the numpy.array(Image)
-# call such that it's returning a object of type numpy.ndarray, but
-# the repr is that of a PIL.Image. Size and shape are 1 and (), not the
-# size and shape of the array. This causes failures in several tests.
-SKIP_NUMPY_ON_PYPY = hasattr(sys, 'pypy_version_info') and (
-    sys.pypy_version_info <= (5, 3, 1, 'final', 0))
 
-
+@unittest.skipIf(numpy is None, "Numpy is not installed")
 class TestNumpy(PillowTestCase):
-
-    def setUp(self):
-        try:
-            import site
-            import numpy
-            assert site  # silence warning
-            assert numpy  # silence warning
-        except ImportError:
-            self.skipTest("ImportError")
-
     def test_numpy_to_image(self):
 
         def to_image(dtype, bands=1, boolean=0):
             if bands == 1:
                 if boolean:
-                    data = [0, 1] * 50
+                    data = [0, 255] * 50
                 else:
                     data = list(range(100))
                 a = numpy.array(data, dtype=dtype)
@@ -52,14 +32,13 @@ class TestNumpy(PillowTestCase):
                 a = numpy.array([[x]*bands for x in data], dtype=dtype)
                 a.shape = TEST_IMAGE_SIZE[0], TEST_IMAGE_SIZE[1], bands
                 i = Image.fromarray(a)
-                if list(i.split()[0].getdata()) != list(range(100)):
+                if list(i.getchannel(0).getdata()) != list(range(100)):
                     print("data mismatch for", dtype)
-            # print(dtype, list(i.getdata()))
             return i
 
         # Check supported 1-bit integer formats
-        self.assertRaises(TypeError, lambda: to_image(numpy.bool))
-        self.assertRaises(TypeError, lambda: to_image(numpy.bool8))
+        self.assert_image(to_image(numpy.bool, 1, 1), '1', TEST_IMAGE_SIZE)
+        self.assert_image(to_image(numpy.bool8, 1, 1), '1', TEST_IMAGE_SIZE)
 
         # Check supported 8-bit integer formats
         self.assert_image(to_image(numpy.uint8), "L", TEST_IMAGE_SIZE)
@@ -86,12 +65,12 @@ class TestNumpy(PillowTestCase):
         self.assert_image(to_image(numpy.int32), "I", TEST_IMAGE_SIZE)
 
         # Check 64-bit integer formats
-        self.assertRaises(TypeError, lambda: to_image(numpy.uint64))
-        self.assertRaises(TypeError, lambda: to_image(numpy.int64))
+        self.assertRaises(TypeError, to_image, numpy.uint64)
+        self.assertRaises(TypeError, to_image, numpy.int64)
 
         # Check floating-point formats
         self.assert_image(to_image(numpy.float), "F", TEST_IMAGE_SIZE)
-        self.assertRaises(TypeError, lambda: to_image(numpy.float16))
+        self.assertRaises(TypeError, to_image, numpy.float16)
         self.assert_image(to_image(numpy.float32), "F", TEST_IMAGE_SIZE)
         self.assert_image(to_image(numpy.float64), "F", TEST_IMAGE_SIZE)
 
@@ -100,7 +79,7 @@ class TestNumpy(PillowTestCase):
         self.assert_image(to_image(numpy.uint8, 4), "RGBA", (10, 10))
 
     # based on an erring example at
-    # http://stackoverflow.com/questions/10854903/what-is-causing-dimension-dependent-attributeerror-in-pil-fromarray-function
+    # https://stackoverflow.com/questions/10854903/what-is-causing-dimension-dependent-attributeerror-in-pil-fromarray-function
     def test_3d_array(self):
         size = (5, TEST_IMAGE_SIZE[0], TEST_IMAGE_SIZE[1])
         a = numpy.ones(size, dtype=numpy.uint8)
@@ -121,7 +100,6 @@ class TestNumpy(PillowTestCase):
             for y in range(0, img.size[1], int(img.size[1]/10)):
                 self.assert_deep_equal(px[x, y], np[y, x])
 
-    @unittest.skipIf(SKIP_NUMPY_ON_PYPY, "numpy.array(Image) is flaky on PyPy")
     def test_16bit(self):
         img = Image.open('Tests/images/16bit.cropped.tif')
         np_img = numpy.array(img)
@@ -135,19 +113,25 @@ class TestNumpy(PillowTestCase):
         img = Image.fromarray(arr * 255).convert('1')
         self.assertEqual(img.mode, '1')
         arr_back = numpy.array(img)
-        numpy.testing.assert_array_equal(arr, arr_back)
+        # numpy 1.8 and earlier return this as a boolean. (trusty/precise)
+        if arr_back.dtype == numpy.bool:
+            arr_bool = numpy.array([[1, 0, 0, 1, 0], [0, 1, 0, 0, 0]], 'bool')
+            numpy.testing.assert_array_equal(arr_bool, arr_back)
+        else:
+            numpy.testing.assert_array_equal(arr, arr_back)
 
     def test_save_tiff_uint16(self):
         # Tests that we're getting the pixel value in the right byte order.
         pixel_value = 0x1234
-        a = numpy.array([pixel_value] * TEST_IMAGE_SIZE[0] * TEST_IMAGE_SIZE[1], dtype=numpy.uint16)
+        a = numpy.array(
+            [pixel_value] * TEST_IMAGE_SIZE[0] * TEST_IMAGE_SIZE[1],
+            dtype=numpy.uint16)
         a.shape = TEST_IMAGE_SIZE
         img = Image.fromarray(a)
 
         img_px = img.load()
         self.assertEqual(img_px[0, 0], pixel_value)
 
-    @unittest.skipIf(SKIP_NUMPY_ON_PYPY, "numpy.array(Image) is flaky on PyPy")
     def test_to_array(self):
 
         def _to_array(mode, dtype):
@@ -198,6 +182,32 @@ class TestNumpy(PillowTestCase):
         im.putdata(arr)
 
         self.assertEqual(len(im.getdata()), len(arr))
+
+    def test_zero_size(self):
+        # Shouldn't cause floating point exception
+        # See https://github.com/python-pillow/Pillow/issues/2259
+
+        im = Image.fromarray(numpy.empty((0, 0), dtype=numpy.uint8))
+
+        self.assertEqual(im.size, (0, 0))
+
+    def test_bool(self):
+        # https://github.com/python-pillow/Pillow/issues/2044
+        a = numpy.zeros((10, 2), dtype=numpy.bool)
+        a[0][0] = True
+
+        im2 = Image.fromarray(a)
+        self.assertEqual(im2.getdata()[0], 255)
+
+    def test_no_resource_warning_for_numpy_array(self):
+        # https://github.com/python-pillow/Pillow/issues/835
+        # Arrange
+        from numpy import array
+        test_file = 'Tests/images/hopper.png'
+        im = Image.open(test_file)
+
+        # Act/Assert
+        self.assert_warning(None, lambda: array(im))
 
 
 if __name__ == '__main__':

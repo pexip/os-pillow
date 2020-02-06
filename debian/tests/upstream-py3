@@ -15,6 +15,7 @@ machine=$(uname -m)
 for t in $tests; do
   case $(basename $t .py)/$machine in
     test_imagedraw/i?86) ;;
+    test_font_pcf.py/i?86|test_font_pcf.py/arm*) ;;
     *)
       pillow_tests="$pillow_tests $t";;
   esac

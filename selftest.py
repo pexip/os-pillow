@@ -5,14 +5,8 @@ from __future__ import print_function
 import sys
 import os
 
-if "--installed" in sys.argv:
-    sys_path_0 = sys.path.pop(0)
-
-from PIL import Image, ImageDraw, ImageFilter, ImageMath
+from PIL import Image
 from PIL import features
-
-if "--installed" in sys.argv:
-    sys.path.insert(0, sys_path_0)
 
 try:
     Image.core.ping
@@ -32,6 +26,7 @@ def testimage():
     """
     PIL lets you create in-memory images with various pixel types:
 
+    >>> from PIL import Image, ImageDraw, ImageFilter, ImageMath
     >>> im = Image.new("1", (128, 128)) # monochrome
     >>> _info(im)
     (None, '1', (128, 128))
@@ -167,7 +162,7 @@ if __name__ == "__main__":
     exit_status = 0
 
     print("-"*68)
-    print("Pillow", Image.PILLOW_VERSION, "TEST SUMMARY ")
+    print("Pillow", Image.__version__, "TEST SUMMARY ")
     print("-"*68)
     print("Python modules loaded from", os.path.dirname(Image.__file__))
     print("Binary modules loaded from", os.path.dirname(Image.core.__file__))
@@ -178,25 +173,16 @@ if __name__ == "__main__":
         ("freetype2", "FREETYPE2"),
         ("littlecms2", "LITTLECMS2"),
         ("webp", "WEBP"),
-        ("transp_webp", "Transparent WEBP")
-    ]:
-        supported = features.check_module(name)
-
-        if supported is None:
-            # A method was being tested, but the module required
-            # for the method could not be correctly imported
-            pass
-        elif supported:
-            print("---", feature, "support ok")
-        else:
-            print("***", feature, "support not installed")
-    for name, feature in [
+        ("transp_webp", "WEBP Transparency"),
+        ("webp_mux", "WEBPMUX"),
+        ("webp_anim", "WEBP Animation"),
         ("jpg", "JPEG"),
         ("jpg_2000", "OPENJPEG (JPEG2000)"),
         ("zlib", "ZLIB (PNG/ZIP)"),
-        ("libtiff", "LIBTIFF")
+        ("libtiff", "LIBTIFF"),
+        ("raqm", "RAQM (Bidirectional Text)")
     ]:
-        if features.check_codec(name):
+        if features.check(name):
             print("---", feature, "support ok")
         else:
             print("***", feature, "support not installed")
