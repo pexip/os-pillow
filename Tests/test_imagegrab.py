@@ -1,20 +1,30 @@
-from helper import unittest, PillowTestCase, on_appveyor
+from helper import unittest, PillowTestCase
 
 import sys
+import subprocess
 
 try:
     from PIL import ImageGrab
 
     class TestImageGrab(PillowTestCase):
 
-        @unittest.skipIf(on_appveyor(), "Test fails on appveyor")
         def test_grab(self):
             im = ImageGrab.grab()
             self.assert_image(im, im.mode, im.size)
 
-        @unittest.skipIf(on_appveyor(), "Test fails on appveyor")
-        def test_grab2(self):
-            im = ImageGrab.grab()
+        def test_grabclipboard(self):
+            if sys.platform == "darwin":
+                subprocess.call(['screencapture', '-cx'])
+            else:
+                p = subprocess.Popen(['powershell', '-command', '-'],
+                                     stdin=subprocess.PIPE)
+                p.stdin.write(b'''[Reflection.Assembly]::LoadWithPartialName("System.Drawing")
+[Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms")
+$bmp = New-Object Drawing.Bitmap 200, 200
+[Windows.Forms.Clipboard]::SetImage($bmp)''')
+                p.communicate()
+
+            im = ImageGrab.grabclipboard()
             self.assert_image(im, im.mode, im.size)
 
 except ImportError:
@@ -38,7 +48,7 @@ class TestImageGrabImport(PillowTestCase):
 
         # Assert
         if sys.platform in ["win32", "darwin"]:
-            self.assertIsNone(exception, None)
+            self.assertIsNone(exception)
         else:
             self.assertIsInstance(exception, ImportError)
             self.assertEqual(str(exception),

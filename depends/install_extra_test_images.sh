@@ -1,11 +1,19 @@
 #!/bin/bash
 # install extra test images
 
-if [ ! -f test_images.tar.gz ]; then
-    wget -O 'test_images.tar.gz' 'https://github.com/python-pillow/pillow-depends/blob/master/test_images.tar.gz?raw=true'
-fi
+rm -rf test_images
 
-rm -r test_images
-tar -xvzf test_images.tar.gz
+# Use SVN to just fetch a single Git subdirectory
+svn_checkout()
+{
+	if [ ! -z $1 ]; then
+		echo ""
+		echo "Retrying svn checkout..."
+		echo ""
+	fi
+
+	svn checkout https://github.com/python-pillow/pillow-depends/trunk/test_images
+}
+svn_checkout || svn_checkout retry || svn_checkout retry || svn_checkout retry
 
 cp -r test_images/* ../Tests/images

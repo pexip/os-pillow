@@ -13,11 +13,12 @@ def pixel(im):
             return int(im)  # hack to deal with booleans
         print(im)
 
+
 A = Image.new("L", (1, 1), 1)
 B = Image.new("L", (1, 1), 2)
 Z = Image.new("L", (1, 1), 0)  # Z for zero
 F = Image.new("F", (1, 1), 3)
-I = Image.new("I", (1, 1), 4)
+I = Image.new("I", (1, 1), 4)  # noqa: E741
 
 A2 = A.resize((2, 2))
 B2 = B.resize((2, 2))

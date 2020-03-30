@@ -1,22 +1,33 @@
-from helper import unittest, PillowTestCase
+from helper import unittest, PillowTestCase, hopper
 from PIL import Image
+from PIL._util import py3
+
 
 try:
     from PIL import ImageTk
+    if py3:
+        import tkinter as tk
+    else:
+        import Tkinter as tk
     dir(ImageTk)
-except (OSError, ImportError) as v:
+    HAS_TK = True
+except (OSError, ImportError):
     # Skipped via setUp()
-    pass
+    HAS_TK = False
+
+TK_MODES = ('1', 'L', 'P', 'RGB', 'RGBA')
 
 
+@unittest.skipIf(not HAS_TK, "Tk not installed")
 class TestImageTk(PillowTestCase):
 
     def setUp(self):
         try:
-            from PIL import ImageTk
-            dir(ImageTk)
-        except (OSError, ImportError) as v:
-            self.skipTest(v)
+            # setup tk
+            tk.Frame()
+            # root = tk.Tk()
+        except tk.TclError as v:
+            self.skipTest("TCL Error: %s" % v)
 
     def test_kw(self):
         TEST_JPG = "Tests/images/hopper.jpg"
@@ -37,7 +48,45 @@ class TestImageTk(PillowTestCase):
 
         # Test no relevant entry
         im = ImageTk._get_image_from_kw(kw)
-        self.assertEqual(im, None)
+        self.assertIsNone(im)
+
+    def test_photoimage(self):
+        for mode in TK_MODES:
+            # test as image:
+            im = hopper(mode)
+
+            # this should not crash
+            im_tk = ImageTk.PhotoImage(im)
+
+            self.assertEqual(im_tk.width(), im.width)
+            self.assertEqual(im_tk.height(), im.height)
+
+            # _tkinter.TclError: this function is not yet supported
+            # reloaded = ImageTk.getimage(im_tk)
+            # self.assert_image_equal(reloaded, im)
+
+    def test_photoimage_blank(self):
+        # test a image using mode/size:
+        for mode in TK_MODES:
+            im_tk = ImageTk.PhotoImage(mode, (100, 100))
+
+            self.assertEqual(im_tk.width(), 100)
+            self.assertEqual(im_tk.height(), 100)
+
+            # reloaded = ImageTk.getimage(im_tk)
+            # self.assert_image_equal(reloaded, im)
+
+    def test_bitmapimage(self):
+        im = hopper('1')
+
+        # this should not crash
+        im_tk = ImageTk.BitmapImage(im)
+
+        self.assertEqual(im_tk.width(), im.width)
+        self.assertEqual(im_tk.height(), im.height)
+
+        # reloaded = ImageTk.getimage(im_tk)
+        # self.assert_image_equal(reloaded, im)
 
 
 if __name__ == '__main__':
