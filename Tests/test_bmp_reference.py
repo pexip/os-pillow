@@ -17,12 +17,15 @@ class TestBmpReference(PillowTestCase):
         """ These shouldn't crash/dos, but they shouldn't return anything
         either """
         for f in self.get_files('b'):
-            try:
-                im = Image.open(f)
-                im.load()
-            except Exception:  # as msg:
-                pass
-                # print("Bad Image %s: %s" %(f,msg))
+            def open(f):
+                try:
+                    im = Image.open(f)
+                    im.load()
+                except Exception:  # as msg:
+                    pass
+
+            # Assert that there is no unclosed file warning
+            self.assert_warning(None, open, f)
 
     def test_questionable(self):
         """ These shouldn't crash/dos, but it's not well defined that these
@@ -43,11 +46,11 @@ class TestBmpReference(PillowTestCase):
                 im = Image.open(f)
                 im.load()
                 if os.path.basename(f) not in supported:
-                    print("Please add %s to the partially supported bmp specs." % f)
+                    print("Please add %s to the partially supported"
+                          " bmp specs." % f)
             except Exception:  # as msg:
                 if os.path.basename(f) in supported:
                     raise
-                # print("Bad Image %s: %s" %(f,msg))
 
     def test_good(self):
         """ These should all work. There's a set of target files in the
@@ -99,8 +102,7 @@ class TestBmpReference(PillowTestCase):
                                os.path.join(base, 'g', 'pal8rle.bmp'),
                                os.path.join(base, 'g', 'pal4rle.bmp'))
                 if f not in unsupported:
-                    self.assertTrue(
-                        False, "Unsupported Image %s: %s" % (f, msg))
+                    self.fail("Unsupported Image %s: %s" % (f, msg))
 
 
 if __name__ == '__main__':

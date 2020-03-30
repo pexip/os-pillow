@@ -13,7 +13,7 @@ To load an image from a file, use the :py:func:`~PIL.Image.open` function
 in the :py:mod:`~PIL.Image` module::
 
     >>> from PIL import Image
-    >>> im = Image.open("lena.ppm")
+    >>> im = Image.open("hopper.ppm")
 
 If successful, this function returns an :py:class:`~PIL.Image.Image` object.
 You can now use instance attributes to examine the file contents::
@@ -41,10 +41,10 @@ example, let’s display the image we just loaded::
 .. note::
 
     The standard version of :py:meth:`~PIL.Image.Image.show` is not very
-    efficient, since it saves the image to a temporary file and calls the
-    :command:`xv` utility to display the image. If you don’t have :command:`xv`
-    installed, it won’t even work. When it does work though, it is very handy
-    for debugging and tests.
+    efficient, since it saves the image to a temporary file and calls a utility
+    to display the image. If you don’t have an appropriate utility installed,
+    it won’t even work. When it does work though, it is very handy for
+    debugging and tests.
 
 The following sections provide an overview of the different functions provided in this library.
 
@@ -175,8 +175,7 @@ Rolling an image
 ::
 
     def roll(image, delta):
-        "Roll an image sideways"
-
+        """Roll an image sideways."""
         xsize, ysize = image.size
 
         delta = delta % xsize
@@ -184,19 +183,10 @@ Rolling an image
 
         part1 = image.crop((0, 0, delta, ysize))
         part2 = image.crop((delta, 0, xsize, ysize))
-        part1.load()
-        part2.load()
-        image.paste(part2, (0, 0, xsize-delta, ysize))
         image.paste(part1, (xsize-delta, 0, xsize, ysize))
+        image.paste(part2, (0, 0, xsize-delta, ysize))
 
         return image
-
-Note that when pasting it back from the :py:meth:`~PIL.Image.Image.crop`
-operation, :py:meth:`~PIL.Image.Image.load` is called first. This is because
-cropping is a lazy operation. If :py:meth:`~PIL.Image.Image.load` was not
-called, then the crop operation would not be performed until the images were
-used in the paste commands. This would mean that ``part1`` would be cropped from
-the version of ``image`` already modified by the first paste.
 
 For more advanced tricks, the paste method can also take a transparency mask as
 an optional argument. In this mask, the value 255 indicates that the pasted
@@ -276,7 +266,8 @@ Converting between modes
 
 ::
 
-    im = Image.open("lena.ppm").convert("L")
+    from PIL import Image
+    im = Image.open("hopper.ppm").convert("L")
 
 The library supports transformations between each supported mode and the “L”
 and “RGB” modes. To convert between other modes, you may have to use an
@@ -435,8 +426,8 @@ Drawing Postscript
     from PIL import Image
     from PIL import PSDraw
 
-    im = Image.open("lena.ppm")
-    title = "lena"
+    im = Image.open("hopper.ppm")
+    title = "hopper"
     box = (1*72, 2*72, 7*72, 10*72) # in points
 
     ps = PSDraw.PSDraw() # default is sys.stdout
@@ -459,7 +450,8 @@ As described earlier, the :py:func:`~PIL.Image.open` function of the
 :py:mod:`~PIL.Image` module is used to open an image file. In most cases, you
 simply pass it the filename as an argument::
 
-    im = Image.open("lena.ppm")
+    from PIL import Image
+    im = Image.open("hopper.ppm")
 
 If everything goes well, the result is an :py:class:`PIL.Image.Image` object.
 Otherwise, an :exc:`IOError` exception is raised.
@@ -473,8 +465,9 @@ Reading from an open file
 
 ::
 
-    fp = open("lena.ppm", "rb")
-    im = Image.open(fp)
+    from PIL import Image
+    with open("hopper.ppm", "rb") as fp:
+        im = Image.open(fp)
 
 To read an image from string data, use the :py:class:`~StringIO.StringIO`
 class:
@@ -499,9 +492,9 @@ Reading from a tar archive
 
 ::
 
-    from PIL import TarIO
+    from PIL import Image, TarIO
 
-    fp = TarIO.TarIO("Imaging.tar", "Imaging/test/lena.ppm")
+    fp = TarIO.TarIO("Tests/images/hopper.tar", "hopper.jpg")
     im = Image.open(fp)
 
 Controlling the decoder

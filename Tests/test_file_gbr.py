@@ -9,7 +9,7 @@ class TestFileGbr(PillowTestCase):
         invalid_file = "Tests/images/flower.jpg"
 
         self.assertRaises(SyntaxError,
-                          lambda: GbrImagePlugin.GbrImageFile(invalid_file))
+                          GbrImagePlugin.GbrImageFile, invalid_file)
 
     def test_gbr_file(self):
         im = Image.open('Tests/images/gbr.gbr')
@@ -17,6 +17,7 @@ class TestFileGbr(PillowTestCase):
         target = Image.open('Tests/images/gbr.png')
 
         self.assert_image_equal(target, im)
+
 
 if __name__ == '__main__':
     unittest.main()

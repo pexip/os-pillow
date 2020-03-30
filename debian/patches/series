@@ -1,5 +1,9 @@
-no-lib64-hack.diff
 toplevel-setup.py
 generate-webp-file
-imagingtk-int-overflow.patch
-olefile.diff
+js-script-file.diff
+4e0a73b4faf4c0b16c6b3912b64f4ad7a6c99acf.diff
+CVE-2019-16865.patch
+CVE-2019-19911.patch
+CVE-2020-5311.patch
+CVE-2020-5312.patch
+CVE-2020-5313.patch

@@ -6,17 +6,17 @@ class TestImagePoint(PillowTestCase):
     def test_sanity(self):
         im = hopper()
 
-        self.assertRaises(ValueError, lambda: im.point(list(range(256))))
+        self.assertRaises(ValueError, im.point, list(range(256)))
         im.point(list(range(256))*3)
         im.point(lambda x: x)
 
         im = im.convert("I")
-        self.assertRaises(ValueError, lambda: im.point(list(range(256))))
+        self.assertRaises(ValueError, im.point, list(range(256)))
         im.point(lambda x: x*1)
         im.point(lambda x: x+1)
         im.point(lambda x: x*1+1)
-        self.assertRaises(TypeError, lambda: im.point(lambda x: x-1))
-        self.assertRaises(TypeError, lambda: im.point(lambda x: x/1))
+        self.assertRaises(TypeError, im.point, lambda x: x-1)
+        self.assertRaises(TypeError, im.point, lambda x: x/1)
 
     def test_16bit_lut(self):
         """ Tests for 16 bit -> 8 bit lut for converting I->L images
@@ -34,6 +34,10 @@ class TestImagePoint(PillowTestCase):
 
         int_lut = [x//2 for x in range(256)]
         self.assert_image_equal(out.convert('L'), im.point(int_lut, 'L'))
+
+    def test_f_mode(self):
+        im = hopper('F')
+        self.assertRaises(ValueError, im.point, None)
 
 
 if __name__ == '__main__':

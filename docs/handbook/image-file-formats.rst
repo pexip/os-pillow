@@ -79,12 +79,19 @@ The :py:meth:`~PIL.Image.Image.open` method sets the following
 **version**
     Version (either ``GIF87a`` or ``GIF89a``).
 
-**duration** 
+**duration**
     May not be present. The time to display the current frame
     of the GIF, in milliseconds.
 
 **loop**
-    May not be present. The number of times the GIF should loop.
+    May not be present. The number of times the GIF should loop. 0 means that
+    it will loop forever.
+
+**comment**
+    May not be present. A comment about the image.
+
+**extension**
+    May not be present. Contains application specific information.
 
 Reading sequences
 ~~~~~~~~~~~~~~~~~
@@ -110,6 +117,48 @@ are available::
 **append_images**
     A list of images to append as additional frames. Each of the
     images in the list can be single or multiframe images.
+    This is currently supported for GIF, PDF, TIFF, and WebP.
+
+    It is also supported for ICNS. If images are passed in of relevant sizes,
+    they will be used instead of scaling down the main image.
+
+**include_color_table**
+    Whether or not to include local color table.
+
+**interlace**
+    Whether or not the image is interlaced. By default, it is, unless the image
+    is less than 16 pixels in width or height.
+
+**disposal**
+    Indicates the way in which the graphic is to be treated after being displayed.
+
+    * 0 - No disposal specified.
+    * 1 - Do not dispose.
+    * 2 - Restore to background color.
+    * 3 - Restore to previous content.
+
+     Pass a single integer for a constant disposal, or a list or tuple
+     to set the disposal for each frame separately.
+
+**palette**
+    Use the specified palette for the saved image. The palette should
+    be a bytes or bytearray object containing the palette entries in
+    RGBRGB... form. It should be no more than 768 bytes. Alternately,
+    the palette can be passed in as an
+    :py:class:`PIL.ImagePalette.ImagePalette` object.
+
+**optimize**
+    If present and true, attempt to compress the palette by
+    eliminating unused colors. This is only useful if the palette can
+    be compressed to the next smaller power of 2 elements.
+
+Note that if the image you are saving comes from an existing GIF, it may have
+the following properties in its :py:attr:`~PIL.Image.Image.info` dictionary.
+For these options, if you do not pass them in, they will default to
+their :py:attr:`~PIL.Image.Image.info` values.
+
+**transparency**
+    Transparency color index.
 
 **duration**
     The display duration of each frame of the multiframe gif, in
@@ -117,15 +166,11 @@ are available::
     list or tuple to set the duration for each frame separately.
 
 **loop**
-    Integer number of times the GIF should loop.
+    Integer number of times the GIF should loop. 0 means that it will loop
+    forever. By default, the image will not loop.
 
-**optimize**
-    If present and true, attempt to compress the palette by
-    eliminating unused colors. This is only useful if the palette can
-    be compressed to the next smaller power of 2 elements.
-
-**palette**
-    Use the specified palette for the saved image.
+**comment**
+    A comment about the image.
 
 Reading local images
 ~~~~~~~~~~~~~~~~~~~~
@@ -163,6 +208,15 @@ sets the following :py:attr:`~PIL.Image.Image.info` property:
     ask for ``(512, 512, 2)``, the final value of
     :py:attr:`~PIL.Image.Image.size` will be ``(1024, 1024)``).
 
+The :py:meth:`~PIL.Image.Image.save` method can take the following keyword arguments:
+
+**append_images**
+    A list of images to replace the scaled down versions of the image.
+    The order of the images does not matter, as their use is determined by
+    the size of each image.
+
+    .. versionadded:: 5.1.0
+
 ICO
 ^^^
 
@@ -173,8 +227,8 @@ The :py:meth:`~PIL.Image.Image.save` method supports the following options:
 **sizes**
     A list of sizes including in this ico file; these are a 2-tuple,
     ``(width, height)``; Default to ``[(16, 16), (24, 24), (32, 32), (48, 48),
-    (64, 64), (128, 128), (255, 255)]``. Any sizes bigger than the original
-    size or 255 will be ignored.
+    (64, 64), (128, 128), (256, 256)]``. Any sizes bigger than the original
+    size or 256 will be ignored.
 
 IM
 ^^
@@ -270,11 +324,11 @@ The :py:meth:`~PIL.Image.Image.save` method supports the following options:
     If present, sets the subsampling for the encoder.
 
     * ``keep``: Only valid for JPEG files, will retain the original image setting.
-    * ``4:4:4``, ``4:2:2``, ``4:1:1``: Specific sampling values
+    * ``4:4:4``, ``4:2:2``, ``4:2:0``: Specific sampling values
     * ``-1``: equivalent to ``keep``
     * ``0``: equivalent to ``4:4:4``
     * ``1``: equivalent to ``4:2:2``
-    * ``2``: equivalent to ``4:1:1``
+    * ``2``: equivalent to ``4:2:0``
 
 **qtables**
     If present, sets the qtables for the encoder. This is listed as an
@@ -403,8 +457,21 @@ PIL identifies, reads, and writes PNG files containing ``1``, ``L``, ``P``,
 The :py:meth:`~PIL.Image.Image.open` method sets the following
 :py:attr:`~PIL.Image.Image.info` properties, when appropriate:
 
+**chromaticity**
+    The chromaticity points, as an 8 tuple of floats. (``White Point
+    X``, ``White Point Y``, ``Red X``, ``Red Y``, ``Green X``, ``Green
+    Y``, ``Blue X``, ``Blue Y``)
+
 **gamma**
     Gamma, given as a floating point number.
+
+**srgb**
+    The sRGB rendering intent as an integer.
+
+      * 0 Perceptual
+      * 1 Relative Colorimetric
+      * 2 Saturation
+      * 3 Absolute Colorimetric
 
 **transparency**
     For ``P`` images: Either the palette index for full transparent pixels,
@@ -415,7 +482,7 @@ The :py:meth:`~PIL.Image.Image.open` method sets the following
 
     This key is omitted if the image is not a transparent palette image.
 
-``Open`` also sets ``Image.text`` to a list of the values of the
+``Open`` also sets ``Image.text`` to a dictionary of the values of the
 ``tEXt``, ``zTXt``, and ``iTXt`` chunks of the PNG image. Individual
 compressed chunks are limited to a decompressed size of
 ``PngImagePlugin.MAX_TEXT_CHUNK``, by default 1MB, to prevent
@@ -462,8 +529,8 @@ The :py:meth:`~PIL.Image.Image.save` method supports the following options:
 .. note::
 
     To enable PNG support, you need to build and install the ZLIB compression
-    library before building the Python Imaging Library. See the installation
-    documentation for details.
+    library before building the Python Imaging Library. See the `installation
+    documentation <../installation.html>`_ for details.
 
 PPM
 ^^^
@@ -514,19 +581,31 @@ the output format must be specified explicitly::
 For more information about the SPIDER image processing package, see the
 `SPIDER homepage`_ at `Wadsworth Center`_.
 
-.. _SPIDER homepage: http://spider.wadsworth.org/spider_doc/spider/docs/spider.html
-.. _Wadsworth Center: http://www.wadsworth.org/
+.. _SPIDER homepage: https://spider.wadsworth.org/spider_doc/spider/docs/spider.html
+.. _Wadsworth Center: https://www.wadsworth.org/
+
+TGA
+^^^
+
+PIL reads and writes TGA images containing ``L``, ``LA``, ``P``,
+``RGB``, and ``RGBA`` data. PIL can read and write both uncompressed and
+run-length encoded TGAs.
 
 TIFF
 ^^^^
 
-PIL reads and writes TIFF files. It can read both striped and tiled images,
-pixel and plane interleaved multi-band images, and either uncompressed, or
-Packbits, LZW, or JPEG compressed images.
+Pillow reads and writes TIFF files. It can read both striped and tiled
+images, pixel and plane interleaved multi-band images. If you have
+libtiff and its headers installed, PIL can read and write many kinds
+of compressed TIFF files. If not, PIL will only read and write
+uncompressed files.
 
-If you have libtiff and its headers installed, PIL can read and write many more
-kinds of compressed TIFF files. If not, PIL will always write uncompressed
-files.
+.. note::
+
+    Beginning in version 5.0.0, Pillow requires libtiff to read or
+    write compressed files. Prior to that release, Pillow had buggy
+    support for reading Packbits, LZW and JPEG compressed TIFFs
+    without using libtiff.
 
 The :py:meth:`~PIL.Image.Image.open` method sets the following
 :py:attr:`~PIL.Image.Image.info` properties:
@@ -577,6 +656,14 @@ The :py:meth:`~PIL.Image.Image.save` method can take the following keyword argum
     If true, Pillow will save all frames of the image to a multiframe tiff document.
 
     .. versionadded:: 3.4.0
+
+**append_images**
+    A list of images to append as additional frames. Each of the
+    images in the list can be single or multiframe images. Note however, that for
+    correct results, all the appended images should have the same
+    ``encoderinfo`` and ``encoderconfig`` properties.
+
+    .. versionadded:: 4.2.0
 
 **tiffinfo**
     A :py:class:`~PIL.TiffImagePlugin.ImageFileDirectory_v2` object or dict
@@ -653,19 +740,69 @@ format are currently undocumented.
 The :py:meth:`~PIL.Image.Image.save` method supports the following options:
 
 **lossless**
-    If present and true, instructs the WEBP writer to use lossless compression.
+    If present and true, instructs the WebP writer to use lossless compression.
 
 **quality**
-    Integer, 1-100, Defaults to 80. Sets the quality level for
-    lossy compression.
+    Integer, 1-100, Defaults to 80. For lossy, 0 gives the smallest
+    size and 100 the largest. For lossless, this parameter is the amount
+    of effort put into the compression: 0 is the fastest, but gives larger
+    files compared to the slowest, but best, 100.
+
+**method**
+    Quality/speed trade-off (0=fast, 6=slower-better). Defaults to 0.
 
 **icc_procfile**
     The ICC Profile to include in the saved file. Only supported if
-    the system webp library was built with webpmux support.
+    the system WebP library was built with webpmux support.
 
 **exif**
     The exif data to include in the saved file. Only supported if
-    the system webp library was built with webpmux support.
+    the system WebP library was built with webpmux support.
+
+Saving sequences
+~~~~~~~~~~~~~~~~~
+
+.. note::
+
+    Support for animated WebP files will only be enabled if the system WebP
+    library is v0.5.0 or later. You can check webp animation support at
+    runtime by calling `features.check("webp_anim")`.
+
+When calling :py:meth:`~PIL.Image.Image.save`, the following options
+are available when the `save_all` argument is present and true.
+
+**append_images**
+    A list of images to append as additional frames. Each of the
+    images in the list can be single or multiframe images.
+
+**duration**
+    The display duration of each frame, in milliseconds. Pass a single
+    integer for a constant duration, or a list or tuple to set the
+    duration for each frame separately.
+
+**loop**
+    Number of times to repeat the animation. Defaults to [0 = infinite].
+
+**background**
+    Background color of the canvas, as an RGBA tuple with values in
+    the range of (0-255).
+
+**minimize_size**
+    If true, minimize the output size (slow). Implicitly disables
+    key-frame insertion.
+
+**kmin, kmax**
+    Minimum and maximum distance between consecutive key frames in
+    the output. The library may insert some key frames as needed
+    to satisfy this criteria. Note that these conditions should
+    hold: kmax > kmin and kmin >= kmax / 2 + 1. Also, if kmax <= 0,
+    then key-frame insertion is disabled; and if kmax == 1, then all
+    frames will be key-frames (kmin value does not matter for these
+    special cases).
+
+**allow_mixed**
+    If true, use mixed compression mode; the encoder heuristically
+    chooses between lossy and lossless for each frame.
 
 XBM
 ^^^
@@ -674,6 +811,13 @@ PIL reads and writes X bitmap files (mode ``1``).
 
 Read-only formats
 -----------------
+
+BLP
+^^^
+
+BLP is the Blizzard Mipmap Format, a texture format used in World of
+Warcraft. Pillow supports reading ``JPEG`` Compressed or raw ``BLP1``
+images, and all types of ``BLP2`` images.
 
 CUR
 ^^^
@@ -752,9 +896,8 @@ The :py:meth:`~PIL.Image.Image.open` method sets the following
 GD
 ^^
 
-PIL reads uncompressed GD files. Note that this file format cannot be
-automatically identified, so you must use :py:func:`PIL.GdImageFile.open` to
-read such a file.
+PIL reads uncompressed GD2 files. Note that you must use
+:py:func:`PIL.GdImageFile.open` to read such a file.
 
 The :py:meth:`~PIL.Image.Image.open` method sets the following
 :py:attr:`~PIL.Image.Image.info` properties:
@@ -785,6 +928,8 @@ PIL identifies and reads Microsoft Image Composer (MIC) files. When opened, the
 first sprite in the file is loaded. You can use :py:meth:`~file.seek` and
 :py:meth:`~file.tell` to read other sprites from the file.
 
+Note that there may be an embedded gamma of 2.2 in MIC files.
+
 MPO
 ^^^
 
@@ -813,11 +958,6 @@ PSD
 
 PIL identifies and reads PSD files written by Adobe Photoshop 2.5 and 3.0.
 
-
-TGA
-^^^
-
-PIL reads 24- and 32-bit uncompressed and run-length encoded TGA files.
 
 WAL
 ^^^
@@ -858,14 +998,81 @@ The format code is ``Palm``, the extension is ``.palm``.
 PDF
 ^^^
 
-PIL can write PDF (Acrobat) images. Such images are written as binary PDF 1.1
+PIL can write PDF (Acrobat) images. Such images are written as binary PDF 1.4
 files, using either JPEG or HEX encoding depending on the image mode (and
 whether JPEG support is available or not).
 
-When calling :py:meth:`~PIL.Image.Image.save`, if a multiframe image is used,
-by default, only the first image will be saved. To save all frames, each frame
-to a separate page of the PDF, the ``save_all`` parameter must be present and
-set to ``True``.
+The :py:meth:`~PIL.Image.Image.save` method can take the following keyword arguments:
+
+**save_all**
+    If a multiframe image is used, by default, only the first image will be saved.
+    To save all frames, each frame to a separate page of the PDF, the ``save_all``
+    parameter must be present and set to ``True``.
+
+    .. versionadded:: 3.0.0
+
+**append_images**
+    A list of images to append as additional pages. Each of the
+    images in the list can be single or multiframe images.
+
+    .. versionadded:: 4.2.0
+
+**append**
+    Set to True to append pages to an existing PDF file. If the file doesn't
+    exist, an :py:exc:`IOError` will be raised.
+
+    .. versionadded:: 5.1.0
+
+**resolution**
+    Image resolution in DPI. This, together with the number of pixels in the
+    image, will determine the physical dimensions of the page that will be
+    saved in the PDF.
+
+**title**
+    The document’s title. If not appending to an existing PDF file, this will
+    default to the filename.
+
+    .. versionadded:: 5.1.0
+
+**author**
+    The name of the person who created the document.
+
+    .. versionadded:: 5.1.0
+
+**subject**
+    The subject of the document.
+
+    .. versionadded:: 5.1.0
+
+**keywords**
+    Keywords associated with the document.
+
+    .. versionadded:: 5.1.0
+
+**creator**
+    If the document was converted to PDF from another format, the name of the
+    conforming product that created the original document from which it was
+    converted.
+
+    .. versionadded:: 5.1.0
+
+**producer**
+    If the document was converted to PDF from another format, the name of the
+    conforming product that converted it to PDF.
+
+    .. versionadded:: 5.1.0
+
+**creationDate**
+    The creation date of the document. If not appending to an existing PDF
+    file, this will default to the current time.
+
+    .. versionadded:: 5.3.0
+
+**modDate**
+    The modification date of the document. If not appending to an existing PDF
+    file, this will default to the current time.
+
+    .. versionadded:: 5.3.0
 
 XV Thumbnails
 ^^^^^^^^^^^^^

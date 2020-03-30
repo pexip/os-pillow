@@ -1,5 +1,7 @@
 # A monkey patch of the base distutils.ccompiler to use parallel builds
 # Tested on 2.7, looks to be identical to 3.3.
+# Only applied on Python < 3.5 because otherwise, it conflicts with Python's
+# own newly-added support for parallel builds.
 
 from __future__ import print_function
 from multiprocessing import Pool, cpu_count
@@ -41,7 +43,7 @@ def _mp_compile(self, sources, output_dir=None, macros=None,
     pool = Pool(MAX_PROCS)
     try:
         print("Building using %d processes" % pool._processes)
-    except:
+    except Exception:
         pass
     arr = [(self, obj, build, cc_args, extra_postargs, pp_opts)
            for obj in objects]
@@ -54,26 +56,20 @@ def _mp_compile(self, sources, output_dir=None, macros=None,
 
 def install():
 
-    fl_pypy3 = hasattr(sys, 'pypy_version_info') and sys.version_info > (3, 0)
     fl_win = sys.platform.startswith('win')
     fl_cygwin = sys.platform.startswith('cygwin')
 
-    if fl_pypy3:
-        # see https://github.com/travis-ci/travis-ci/issues/3587
-        print("Single threaded build for pypy3")
-        return
-
     if fl_win or fl_cygwin:
-        # windows barfs on multiprocessing installs
-        print("Single threaded build for windows")
+        # Windows barfs on multiprocessing installs
+        print("Single threaded build for Windows")
         return
 
     if MAX_PROCS != 1:
         # explicitly don't enable if environment says 1 processor
         try:
             # bug, only enable if we can make a Pool. see issue #790 and
-            # http://stackoverflow.com/questions/6033599/oserror-38-errno-38-with-multiprocessing
-            pool = Pool(2)
+            # https://stackoverflow.com/questions/6033599/oserror-38-errno-38-with-multiprocessing
+            Pool(2)
             CCompiler.compile = _mp_compile
         except Exception as msg:
             print("Exception installing mp_compile, proceeding without:"
@@ -82,4 +78,7 @@ def install():
         print("Single threaded build, not installing mp_compile:"
               "%s processes" % MAX_PROCS)
 
-install()
+
+# We monkeypatch only versions earlier than 3.5
+if sys.version_info < (3, 5):
+    install()

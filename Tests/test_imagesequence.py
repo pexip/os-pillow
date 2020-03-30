@@ -22,7 +22,7 @@ class TestImageSequence(PillowTestCase):
 
         self.assertEqual(index, 1)
 
-        self.assertRaises(AttributeError, lambda: ImageSequence.Iterator(0))
+        self.assertRaises(AttributeError, ImageSequence.Iterator, 0)
 
     def test_iterator(self):
         im = Image.open('Tests/images/multipage.tiff')
@@ -30,7 +30,7 @@ class TestImageSequence(PillowTestCase):
         for index in range(0, im.n_frames):
             self.assertEqual(i[index], next(i))
         self.assertRaises(IndexError, lambda: i[index+1])
-        self.assertRaises(StopIteration, lambda: next(i))
+        self.assertRaises(StopIteration, next, i)
 
     def _test_multipage_tiff(self):
         im = Image.open('Tests/images/multipage.tiff')
@@ -58,11 +58,9 @@ class TestImageSequence(PillowTestCase):
         for frame in ImageSequence.Iterator(im):
             if firstFrame is None:
                 firstFrame = frame.copy()
-            pass
         for frame in ImageSequence.Iterator(im):
             self.assert_image_equal(frame, firstFrame)
             break
-
 
     def test_palette_mmap(self):
         # Using mmap in ImageFile can require to reload the palette.
@@ -71,6 +69,7 @@ class TestImageSequence(PillowTestCase):
         im.seek(0)
         color2 = im.getpalette()[0:3]
         self.assertEqual(color1, color2)
+
 
 if __name__ == '__main__':
     unittest.main()

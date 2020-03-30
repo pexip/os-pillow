@@ -20,8 +20,13 @@ ifneq ($(DEB_BUILD_MULTIARCH),$(DEB_HOST_MULTIARCH))
 endif
 
 build-arch: build
-build-indep: build
+build-indep: build build-doc-stamp
 build: build-stamp
+
+build-doc-stamp: build
+	PYTHONPATH=$(CURDIR)/$(wildcard build/lib.*-$(PY3VER)) $(MAKE) -C docs html
+	touch $@
+
 build-stamp: $(PYVERS:%=build-stamp-python%) $(PY3VERS:%=build-stamp-python%) $(PYVERS:%=check-stamp-python%) $(PY3VERS:%=check-stamp-python%)
 	touch $@
 build-stamp-python%:
@@ -34,6 +39,7 @@ build-stamp-python%:
 pillow_tests = $(wildcard Tests/test*.py)
 
 check-stamp-python%:
+ifeq (0,1)
 ifeq ($(DEB_BUILD_MULTIARCH),$(DEB_HOST_MULTIARCH))
 	: # run the tests for the debug interpreter, but continue in case of error
 	rm -rf tmp
@@ -46,6 +52,7 @@ ifeq (0,1)
 endif
 	@echo BEGIN python$* tests
 	-cd tmp && python$* ../debian/test-built.py --processes=1 --process-timeout=90 $(pillow_tests)
+endif
 endif
 	touch $@
 
@@ -60,6 +67,7 @@ clean:
 	find -type d -name __pycache__ | xargs -r rm -rf
 #	rm -f $$(tar tf debian/lcms-images.tar.gz)
 	rm -rf tmp
+	rm -rf docs/_build
 	dh_clean
 
 get-doc:
@@ -68,7 +76,7 @@ get-doc:
 
 install: build install-prereq $(PYVERS:%=install-python%) $(PY3VERS:%=install3-python%)
 	dh_installdocs -ppython-pil-doc #Docs/*
-	dh_installexamples -ppython-pil-doc Scripts/*
+	dh_installexamples -ppython-pil-doc
 
 	dh_installdocs -ppython-pil -ppython3-pil README.rst
 
@@ -96,9 +104,6 @@ install: build install-prereq $(PYVERS:%=install-python%) $(PY3VERS:%=install3-p
 	    echo "fixed interpreter: $$i"; \
 	  fi; \
 	done
-	for i in debian/python3-pil/usr/bin/*.py; do \
-	  mv $$i debian/python3-pil/usr/bin/$$(basename $$i .py); \
-	done
 
 install-prereq:
 	dh_testdir
@@ -110,9 +115,10 @@ install-python%:
 		$(py_setup_install_args)
 	mkdir -p debian/python-pil/usr/include/python$*
 	install -o root -g root -m 644 \
-		libImaging/Imaging.h \
-		libImaging/ImPlatform.h \
-		libImaging/ImDib.h \
+		src/libImaging/Imaging.h \
+		src/libImaging/ImagingUtils.h \
+		src/libImaging/ImPlatform.h \
+		src/libImaging/ImDib.h \
 		debian/python-pil/usr/include/python$*
 
 	dh_movefiles -ppython-pil.imagetk \
@@ -124,7 +130,7 @@ install-python%:
 		--root $(CURDIR)/debian/python-pil-dbg \
 		$(py_setup_install_args)
 	mkdir -p debian/python-pil-dbg/usr/include/python$*_d
-	for i in Imaging.h ImPlatform.h ImDib.h; do \
+	for i in Imaging.h ImagingUtils.h ImPlatform.h ImDib.h; do \
 	  ln -sf ../python$*/$$i \
 	    debian/python-pil-dbg/usr/include/python$*_d/$$i; \
 	done
@@ -137,11 +143,6 @@ install-python%:
 	    --sourcedir=debian/python-pil-dbg \
 		usr/lib/python$*/$(call py_sitename_sh, $*)/PIL/_imagingtk_d.so
 
-	# Install the compatibility modules for python2 only.
-	cd debian/PILcompat && python$* setup.py install \
-		--root $(CURDIR)/debian/python-imaging --install-layout=deb
-	find debian/python-imaging -name '*.egg-info' | xargs -r rm -rf
-
 install3-python%:
 	$(SET_CROSS_ENV) python$* setup.py install \
 		--root $(CURDIR)/debian/python3-pil \
@@ -150,9 +151,10 @@ install3-python%:
 	incdir=$$(python$* -c 'import sysconfig; print(sysconfig.get_path("include"))'); \
 	mkdir -p debian/python3-pil/$$incdir; \
 	install -o root -g root -m 644 \
-		libImaging/Imaging.h \
-		libImaging/ImPlatform.h \
-		libImaging/ImDib.h \
+		src/libImaging/Imaging.h \
+		src/libImaging/ImagingUtils.h \
+		src/libImaging/ImPlatform.h \
+		src/libImaging/ImDib.h \
 		debian/python3-pil/$$incdir
 
 	if `python$* -c "import sys; sys.exit(sys.version_info < (3,5))"`; \
@@ -174,7 +176,7 @@ install3-python%:
 	incname=$$(basename $$(python$* -c 'import sysconfig; print(sysconfig.get_path("include"))')); \
 	incddir=$$(python$*-dbg -c 'import sysconfig; print(sysconfig.get_path("include"))'); \
 	mkdir -p debian/python3-pil-dbg/$$incddir; \
-	for i in Imaging.h ImPlatform.h ImDib.h; do \
+	for i in Imaging.h ImagingUtils.h ImPlatform.h ImDib.h; do \
 	  ln -sf ../$$incname/$$i \
 	    debian/python3-pil-dbg/$$incddir/$$i; \
 	done
@@ -195,10 +197,12 @@ install3-python%:
 
 # Build architecture-independent files here.
 # Pass -i to all debhelper commands in this target to reduce clutter.
-binary-indep: build install
+binary-indep: build build-doc-stamp install
 	dh_testdir -i
 	dh_testroot -i
 	dh_installdocs -i
+	dh_installdocs -ppython-pil-doc docs/_build/html
+	dh_sphinxdoc -ppython-pil-doc
 	dh_installexamples -i
 	dh_installchangelogs -i CHANGES.rst
 	dh_python2 -i

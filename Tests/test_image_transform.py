@@ -52,6 +52,22 @@ class TestImageTransform(PillowTestCase):
 
         self.assert_image_equal(transformed, scaled)
 
+    def test_fill(self):
+        for mode, pixel in [
+            ['RGB', (255, 0, 0)],
+            ['RGBA', (255, 0, 0, 255)],
+            ['LA', (76, 0)]
+        ]:
+            im = hopper(mode)
+            (w, h) = im.size
+            transformed = im.transform(im.size, Image.EXTENT,
+                                       (0, 0,
+                                        w*2, h*2),
+                                       Image.BILINEAR,
+                                       fillcolor='red')
+
+            self.assertEqual(transformed.getpixel((w-1, h-1)), pixel)
+
     def test_mesh(self):
         # this should be a checkerboard of halfsized hoppers in ul, lr
         im = hopper('RGBA')
@@ -136,9 +152,13 @@ class TestImageTransform(PillowTestCase):
         ]
 
         # Yeah. Watch some JIT optimize this out.
-        pattern = None
+        pattern = None  # noqa: F841
 
         self.test_mesh()
+
+    def test_missing_method_data(self):
+        im = hopper()
+        self.assertRaises(ValueError, im.transform, (100, 100), None)
 
 
 class TestImageTransformAffine(PillowTestCase):
