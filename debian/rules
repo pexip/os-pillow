@@ -24,7 +24,8 @@ build-indep: build build-doc-stamp
 build: build-stamp
 
 build-doc-stamp: build
-	PYTHONPATH=$(CURDIR)/$(wildcard build/lib.*-$(PY3VER)) $(MAKE) -C docs html
+	#PYTHONPATH=$(CURDIR)/$(wildcard build/lib.*-$(PY3VER)) $(MAKE) -C docs html
+	mkdir -p docs/_build/html
 	touch $@
 
 build-stamp: $(PYVERS:%=build-stamp-python%) $(PY3VERS:%=build-stamp-python%) $(PYVERS:%=check-stamp-python%) $(PY3VERS:%=check-stamp-python%)

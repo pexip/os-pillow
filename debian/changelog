@@ -1,3 +1,11 @@
+pillow (5.4.1-2+deb10u1pexip1) pexip; urgency=medium
+
+  * Migrate to Buster
+  * Skip building docs as it fails
+    AttributeError: module 'PIL' has no attribute '__version__'
+
+ -- Vincent Sanders <vince@pexip.com>  Mon, 30 Mar 2020 11:08:24 +0000
+
 pillow (5.4.1-2+deb10u1) buster-security; urgency=medium
 
   * CVE-2019-16865 CVE-2019-19911 CVE-2020-5311 CVE-2020-5312 CVE-2020-5313
