@@ -1,3 +1,15 @@
+pillow (4.0.0-4+deb9u1pexip1) pexip; urgency=medium
+
+  * New upstream release
+
+ -- John-Mark Bell <jmb@pexip.com>  Thu, 07 May 2020 13:59:38 +0100
+
+pillow (4.0.0-4+deb9u1) stretch-security; urgency=medium
+
+  * CVE-2019-19911 CVE-2020-5312 CVE-2020-5313
+
+ -- Moritz Mühlenhoff <jmm@debian.org>  Thu, 20 Feb 2020 22:56:37 +0100
+
 pillow (4.0.0-4pexip1) pexip; urgency=medium
 
   * Migrate to Stretch

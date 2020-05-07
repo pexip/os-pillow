@@ -3,3 +3,4 @@ toplevel-setup.py
 generate-webp-file
 imagingtk-int-overflow.patch
 olefile.diff
+CVE-2019-19911_CVE-2020-5312_CVE-2020-5313.patch
