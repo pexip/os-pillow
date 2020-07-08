@@ -15,7 +15,6 @@ Build-Depends: debhelper (>= 9), tk-dev, dpkg-dev (>= 1.16.1~),
   libfreetype6-dev, libjpeg-dev, zlib1g-dev, liblcms2-dev,
 #  libtiff5-dev | libtiff-dev, libwebp-dev,
   libraqm-dev,
-  libimagequant-dev,
 Build-Depends-Indep: python3-sphinx, python3-sphinx-rtd-theme,
 Build-Conflicts: python-cffi, python3-cffi
 Standards-Version: 4.3.0
