@@ -1,3 +1,9 @@
+pillow (5.4.1-2+deb10u2) buster; urgency=medium
+
+  * CVE-2020-11538 CVE-2020-10378 CVE-2020-10177
+
+ -- Moritz Mühlenhoff <jmm@debian.org>  Wed, 22 Jul 2020 19:23:16 +0200
+
 pillow (5.4.1-2+deb10u1) buster-security; urgency=medium
 
   * CVE-2019-16865 CVE-2019-19911 CVE-2020-5311 CVE-2020-5312 CVE-2020-5313
