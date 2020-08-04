@@ -1,3 +1,15 @@
+pillow (5.4.1-2+deb10u2pexip1) pexip; urgency=medium
+
+  * New upstream release
+
+ -- Steve McIntyre <steve.mcintyre@pexip.com>  Tue, 04 Aug 2020 16:18:43 +0100
+
+pillow (5.4.1-2+deb10u2) buster; urgency=medium
+
+  * CVE-2020-11538 CVE-2020-10378 CVE-2020-10177
+
+ -- Moritz Mühlenhoff <jmm@debian.org>  Wed, 22 Jul 2020 19:23:16 +0200
+
 pillow (5.4.1-2+deb10u1pexip1) pexip; urgency=medium
 
   * Migrate to Buster
