@@ -1,26 +1,143 @@
-pillow (5.4.1-2+deb10u3) buster-security; urgency=medium
+pillow (8.1.2+dfsg-0.3+deb11u1) bullseye-security; urgency=medium
 
   * CVE-2022-22815 CVE-2022-22816 CVE-2022-22817
 
- -- Moritz Mühlenhoff <jmm@debian.org>  Thu, 20 Jan 2022 20:24:28 +0100
+ -- Moritz Mühlenhoff <jmm@debian.org>  Fri, 14 Jan 2022 16:44:08 +0100
 
-pillow (5.4.1-2+deb10u2) buster; urgency=medium
+pillow (8.1.2+dfsg-0.3) unstable; urgency=high
 
-  * CVE-2020-11538 CVE-2020-10378 CVE-2020-10177
+  * Non-maintainer upload by the Security Team.
+  * Fix "CVE-2021-34552 - buffer overflow in Convert.c. Replace sprintf with
+    snprintf. Backport upstream change from 8.3 to 8.1. (Closes: #991293)
 
- -- Moritz Mühlenhoff <jmm@debian.org>  Wed, 22 Jul 2020 19:23:16 +0200
+ -- Neil Williams <codehelp@debian.org>  Tue, 20 Jul 2021 06:42:31 +0100
 
-pillow (5.4.1-2+deb10u1) buster-security; urgency=medium
+pillow (8.1.2+dfsg-0.2) unstable; urgency=medium
 
-  * CVE-2019-16865 CVE-2019-19911 CVE-2020-5311 CVE-2020-5312 CVE-2020-5313
+  * Non-maintainer upload.
+  * Cherrypick security fixes from 8.2:
+    - CVE-2021-25287 / CVE-2021-25288 / CVE-2021-28675 / CVE-2021-28676
+      CVE-2021-28677 / CVE-2021-28678 (Closes: #989062)
 
- -- Moritz Mühlenhoff <jmm@debian.org>  Thu, 06 Feb 2020 20:47:20 +0100
+ -- Moritz Muehlenhoff <jmm@debian.org>  Sun, 13 Jun 2021 18:11:04 +0200
 
-pillow (5.4.1-2) unstable; urgency=medium
+pillow (8.1.2+dfsg-0.1) unstable; urgency=medium
 
-  * Allow for unknown PNG chunks after image data. Closes: #926552.
+  * Non-maintainer upload.
+  * Repack for DFSG compliance and update d/copyright. Closes: #952899.
+  * Update d/watch for +dfsg repack.
 
- -- Matthias Klose <doko@debian.org>  Sun, 07 Apr 2019 02:53:28 +0200
+ -- Romain Porte <debian@microjoe.org>  Sat, 24 Apr 2021 15:51:24 +0200
+
+pillow (8.1.2-1) unstable; urgency=high
+
+  * New upstream version.
+    - Fix Memory DOS in BLP (CVE-2021-27921), ICNS (CVE-2021-27922)
+      and ICO (CVE-2021-27923) Image Plugins.
+
+ -- Matthias Klose <doko@debian.org>  Tue, 09 Mar 2021 08:12:51 +0100
+
+pillow (8.1.1-1) unstable; urgency=high
+
+  * New upstream version.
+    - Use more specific regex chars to prevent ReDoS. CVE-2021-25292.
+    - Fix OOB Read in TiffDecode.c, and check the tile validity before reading.
+      CVE-2021-25291.
+    - Fix negative size read in TiffDecode.c. CVE-2021-25290.
+    - Fix OOB read in SgiRleDecode.c. CVE-2021-25293.
+    - Incorrect error code checking in TiffDecode.c. CVE-2021-25289.
+
+ -- Matthias Klose <doko@debian.org>  Thu, 04 Mar 2021 07:13:48 +0100
+
+pillow (8.1.0-1) unstable; urgency=medium
+
+  * New upstream version.
+  * Bump standards and debhelper versions.
+
+ -- Matthias Klose <doko@debian.org>  Wed, 06 Jan 2021 13:18:02 +0100
+
+pillow (8.0.1-1) unstable; urgency=medium
+
+  * New upstream version.
+
+ -- Matthias Klose <doko@debian.org>  Thu, 29 Oct 2020 20:02:10 +0100
+
+pillow (8.0.0-1) experimental; urgency=medium
+
+  * New upstream version.
+
+ -- Matthias Klose <doko@debian.org>  Sat, 17 Oct 2020 12:09:16 +0200
+
+pillow (7.2.0-1) unstable; urgency=medium
+
+  * New upstream version.
+  * Update debian/copyright, partially addresses #952899.
+    - Mention contributors.
+    - Add copyright information for fonts.
+  * Bump debhelper version.
+
+ -- Matthias Klose <doko@debian.org>  Thu, 16 Jul 2020 13:42:51 +0200
+
+pillow (7.0.0-4) unstable; urgency=medium
+
+  * Don't rely on python2's python.mk in the build.
+  * Bump standards version.
+
+ -- Matthias Klose <doko@debian.org>  Wed, 29 Jan 2020 08:33:20 +0100
+
+pillow (7.0.0-3) unstable; urgency=medium
+
+  * Drop the Python2 autopkg tests.
+
+ -- Matthias Klose <doko@debian.org>  Sun, 12 Jan 2020 09:54:31 +0100
+
+pillow (7.0.0-2) unstable; urgency=medium
+
+  * Build-depend on python2 for the use of python.mk.
+
+ -- Matthias Klose <doko@debian.org>  Mon, 06 Jan 2020 16:19:39 +0100
+
+pillow (7.0.0-1) unstable; urgency=medium
+
+  * New upstream version.
+    - Drops Python2 support.
+  * Stop building the Python2 packages, now built from the pillow-python2
+    source.
+
+ -- Matthias Klose <doko@debian.org>  Mon, 06 Jan 2020 13:38:42 +0100
+
+pillow (6.2.1-2) unstable; urgency=medium
+
+  * Call python2 in the autopkg python2 tests.
+
+ -- Matthias Klose <doko@debian.org>  Mon, 04 Nov 2019 08:41:21 +0100
+
+pillow (6.2.1-1) unstable; urgency=medium
+
+  * New upstream version, "last Pillow release to support Python 2.7".
+  * Replaces python-dbg debpendencies with python2-dbg.
+  * Remove Python2 suggests.
+
+ -- Matthias Klose <doko@debian.org>  Sat, 26 Oct 2019 16:49:09 +0200
+
+pillow (6.2.0-1) unstable; urgency=medium
+
+  * New upstream version, last version supporting Python2.
+  * Bump standards version.
+
+ -- Matthias Klose <doko@debian.org>  Wed, 16 Oct 2019 15:47:42 +0200
+
+pillow (6.1.0-1) unstable; urgency=medium
+
+  * New upstream version.
+
+ -- Matthias Klose <doko@debian.org>  Sun, 07 Jul 2019 14:36:49 +0200
+
+pillow (6.0.0-1) experimental; urgency=medium
+
+  * New upstream version.
+
+ -- Matthias Klose <doko@debian.org>  Sun, 07 Apr 2019 02:43:30 +0200
 
 pillow (5.4.1-1) unstable; urgency=medium
 

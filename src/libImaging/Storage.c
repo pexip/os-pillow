@@ -132,7 +132,7 @@ ImagingNewPrologueSubtype(const char *mode, int xsize, int ysize, int size)
 
     } else if (strcmp(mode, "BGR;15") == 0) {
         /* EXPERIMENTAL */
-        /* 15-bit true colour */
+        /* 15-bit reversed true colour */
         im->bands = 1;
         im->pixelsize = 2;
         im->linesize = (xsize*2 + 3) & -4;
@@ -244,17 +244,21 @@ ImagingNewPrologue(const char *mode, int xsize, int ysize)
 void
 ImagingDelete(Imaging im)
 {
-    if (!im)
+    if (!im) {
         return;
+    }
 
-    if (im->palette)
+    if (im->palette) {
         ImagingPaletteDelete(im->palette);
+    }
 
-    if (im->destroy)
+    if (im->destroy) {
         im->destroy(im);
+    }
 
-    if (im->image)
+    if (im->image) {
         free(im->image);
+    }
 
     free(im);
 }
@@ -399,13 +403,14 @@ ImagingAllocateArray(Imaging im, int dirty, int block_size)
 
     aligned_linesize = (im->linesize + arena->alignment - 1) & -arena->alignment;
     lines_per_block = (block_size - (arena->alignment - 1)) / aligned_linesize;
-    if (lines_per_block == 0)
+    if (lines_per_block == 0) {
         lines_per_block = 1;
+    }
     blocks_count = (im->ysize + lines_per_block - 1) / lines_per_block;
     // printf("NEW size: %dx%d, ls: %d, lpb: %d, blocks: %d\n",
     //        im->xsize, im->ysize, aligned_linesize, lines_per_block, blocks_count);
 
-    /* One extra ponter is always NULL */
+    /* One extra pointer is always NULL */
     im->blocks = calloc(sizeof(*im->blocks), blocks_count + 1);
     if ( ! im->blocks) {
         return (Imaging) ImagingError_MemoryError();
@@ -457,8 +462,9 @@ ImagingAllocateArray(Imaging im, int dirty, int block_size)
 static void
 ImagingDestroyBlock(Imaging im)
 {
-    if (im->block)
+    if (im->block) {
         free(im->block);
+    }
 }
 
 Imaging
@@ -510,8 +516,9 @@ ImagingNewInternal(const char* mode, int xsize, int ysize, int dirty)
     }
 
     im = ImagingNewPrologue(mode, xsize, ysize);
-    if ( ! im)
+    if ( ! im) {
         return NULL;
+    }
 
     if (ImagingAllocateArray(im, dirty, ImagingDefaultArena.block_size)) {
         return im;
@@ -550,8 +557,9 @@ ImagingNewBlock(const char* mode, int xsize, int ysize)
     }
 
     im = ImagingNewPrologue(mode, xsize, ysize);
-    if ( ! im)
+    if ( ! im) {
         return NULL;
+    }
 
     if (ImagingAllocateBlock(im)) {
         return im;
@@ -576,8 +584,9 @@ ImagingNew2Dirty(const char* mode, Imaging imOut, Imaging imIn)
     } else {
         /* create new image */
         imOut = ImagingNewDirty(mode, imIn->xsize, imIn->ysize);
-        if (!imOut)
+        if (!imOut) {
             return NULL;
+        }
     }
 
     return imOut;
@@ -587,8 +596,9 @@ void
 ImagingCopyPalette(Imaging destination, Imaging source)
 {
     if (source->palette) {
-        if (destination->palette)
+        if (destination->palette) {
             ImagingPaletteDelete(destination->palette);
+        }
         destination->palette = ImagingPaletteDuplicate(source->palette);
     }
 }

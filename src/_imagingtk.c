@@ -4,8 +4,8 @@
  * tkinter hooks
  *
  * history:
- * 99-07-26 fl	created
- * 99-08-15 fl	moved to its own support module
+ * 99-07-26 fl created
+ * 99-08-15 fl moved to its own support module
  *
  * Copyright (c) Secret Labs AB 1999.
  *
@@ -14,9 +14,9 @@
 
 
 #include "Python.h"
-#include "Imaging.h"
+#include "libImaging/Imaging.h"
 
-#include "_tkmini.h"
+#include "Tk/_tkmini.h"
 
 /* must link with Tk/tkImaging.c */
 extern void TkImaging_Init(Tcl_Interp* interp);
@@ -38,15 +38,16 @@ _tkinit(PyObject* self, PyObject* args)
 
     PyObject* arg;
     int is_interp;
-    if (!PyArg_ParseTuple(args, "Oi", &arg, &is_interp))
+    if (!PyArg_ParseTuple(args, "Oi", &arg, &is_interp)) {
         return NULL;
+    }
 
-    if (is_interp)
+    if (is_interp) {
         interp = (Tcl_Interp*)PyLong_AsVoidPtr(arg);
-    else {
+    } else {
         TkappObject* app;
-	/* Do it the hard way.  This will break if the TkappObject
-	   layout changes */
+        /* Do it the hard way.  This will break if the TkappObject
+        layout changes */
         app = (TkappObject*)PyLong_AsVoidPtr(arg);
         interp = app->interp;
     }
@@ -64,7 +65,6 @@ static PyMethodDef functions[] = {
     {NULL, NULL} /* sentinel */
 };
 
-#if PY_VERSION_HEX >= 0x03000000
 PyMODINIT_FUNC
 PyInit__imagingtk(void) {
     static PyModuleDef module_def = {
@@ -78,12 +78,3 @@ PyInit__imagingtk(void) {
     m = PyModule_Create(&module_def);
     return (load_tkinter_funcs() == 0) ? m : NULL;
 }
-#else
-PyMODINIT_FUNC
-init_imagingtk(void)
-{
-    Py_InitModule("_imagingtk", functions);
-    load_tkinter_funcs();
-}
-#endif
-

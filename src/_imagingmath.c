@@ -15,8 +15,7 @@
 
 #include "Python.h"
 
-#include "Imaging.h"
-#include "py3.h"
+#include "libImaging/Imaging.h"
 
 #include "math.h"
 #include "float.h"
@@ -89,12 +88,14 @@ void name(Imaging out, Imaging im1, Imaging im2)\
 static int powi(int x, int y)
 {
     double v = pow(x, y) + 0.5;
-    if (errno == EDOM)
+    if (errno == EDOM) {
         return 0;
-    if (v < MIN_INT32)
+    }
+    if (v < MIN_INT32) {
         v = MIN_INT32;
-    else if (v > MAX_INT32)
+    } else if (v > MAX_INT32) {
         v = MAX_INT32;
+    }
     return (int) v;
 }
 
@@ -168,8 +169,9 @@ _unop(PyObject* self, PyObject* args)
     void (*unop)(Imaging, Imaging);
 
     Py_ssize_t op, i0, i1;
-    if (!PyArg_ParseTuple(args, "nnn", &op, &i0, &i1))
+    if (!PyArg_ParseTuple(args, "nnn", &op, &i0, &i1)) {
         return NULL;
+    }
 
     out = (Imaging) i0;
     im1 = (Imaging) i1;
@@ -191,8 +193,9 @@ _binop(PyObject* self, PyObject* args)
     void (*binop)(Imaging, Imaging, Imaging);
 
     Py_ssize_t op, i0, i1, i2;
-    if (!PyArg_ParseTuple(args, "nnnn", &op, &i0, &i1, &i2))
+    if (!PyArg_ParseTuple(args, "nnnn", &op, &i0, &i1, &i2)) {
         return NULL;
+    }
 
     out = (Imaging) i0;
     im1 = (Imaging) i1;
@@ -215,9 +218,10 @@ static PyMethodDef _functions[] = {
 static void
 install(PyObject *d, char* name, void* value)
 {
-    PyObject *v = PyInt_FromSsize_t((Py_ssize_t) value);
-    if (!v || PyDict_SetItemString(d, name, v))
+    PyObject *v = PyLong_FromSsize_t((Py_ssize_t) value);
+    if (!v || PyDict_SetItemString(d, name, v)) {
         PyErr_Clear();
+    }
     Py_XDECREF(v);
 }
 
@@ -273,7 +277,6 @@ setup_module(PyObject* m) {
     return 0;
 }
 
-#if PY_VERSION_HEX >= 0x03000000
 PyMODINIT_FUNC
 PyInit__imagingmath(void) {
     PyObject* m;
@@ -288,17 +291,9 @@ PyInit__imagingmath(void) {
 
     m = PyModule_Create(&module_def);
 
-    if (setup_module(m) < 0)
+    if (setup_module(m) < 0) {
         return NULL;
+    }
 
     return m;
 }
-#else
-PyMODINIT_FUNC
-init_imagingmath(void)
-{
-    PyObject* m = Py_InitModule("_imagingmath", _functions);
-    setup_module(m);
-}
-#endif
-
