@@ -1,3 +1,9 @@
+pillow (5.4.1-2+deb10u3) buster-security; urgency=medium
+
+  * CVE-2022-22815 CVE-2022-22816 CVE-2022-22817
+
+ -- Moritz Mühlenhoff <jmm@debian.org>  Thu, 20 Jan 2022 20:24:28 +0100
+
 pillow (5.4.1-2+deb10u2) buster; urgency=medium
 
   * CVE-2020-11538 CVE-2020-10378 CVE-2020-10177
