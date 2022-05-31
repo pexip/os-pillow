@@ -20,7 +20,7 @@ Build-Conflicts: python-cffi, python3-cffi
 Standards-Version: 4.3.0
 Homepage: http://python-pillow.github.io/
 XS-Testsuite: autopkgtest
-XS-Pexip-Upstream: http://ftp.debian.org/debian/ buster
+XS-Pexip-Upstream: http://deb.debian.org/debian/ bullseye
 
 Package: python-pil
 Architecture: any
