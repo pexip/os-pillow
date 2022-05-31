@@ -12,8 +12,7 @@
  */
 
 #include "Python.h"
-#include "Imaging.h"
-#include "py3.h"
+#include "libImaging/Imaging.h"
 
 #define LUT_SIZE (1<<9)
 
@@ -86,8 +85,9 @@ apply(PyObject *self, PyObject* args)
         /* zero boundary conditions. TBD support other modes */
         outrow[0] = outrow[width-1] = 0;
         if (row_idx==0 || row_idx == height-1) {
-            for(col_idx=0; col_idx<width; col_idx++)
+            for(col_idx=0; col_idx<width; col_idx++) {
                 outrow[col_idx] = 0;
+            }
             continue;
         }
 
@@ -273,7 +273,6 @@ static PyMethodDef functions[] = {
     {NULL, NULL, 0, NULL}
 };
 
-#if PY_VERSION_HEX >= 0x03000000
 PyMODINIT_FUNC
 PyInit__imagingmorph(void) {
     PyObject* m;
@@ -288,17 +287,9 @@ PyInit__imagingmorph(void) {
 
     m = PyModule_Create(&module_def);
 
-    if (setup_module(m) < 0)
+    if (setup_module(m) < 0) {
         return NULL;
+    }
 
     return m;
 }
-#else
-PyMODINIT_FUNC
-init_imagingmorph(void)
-{
-    PyObject* m = Py_InitModule("_imagingmorph", functions);
-    setup_module(m);
-}
-#endif
-

@@ -35,8 +35,9 @@ im_point_8_8(Imaging imOut, Imaging imIn, im_point_context* context)
     for (y = 0; y < imIn->ysize; y++) {
         UINT8* in = imIn->image8[y];
         UINT8* out = imOut->image8[y];
-        for (x = 0; x < imIn->xsize; x++)
+        for (x = 0; x < imIn->xsize; x++) {
             out[x] = table[in[x]];
+        }
     }
 }
 
@@ -99,12 +100,13 @@ im_point_8_32(Imaging imOut, Imaging imIn, im_point_context* context)
 {
     int x, y;
     /* 8-bit source, 32-bit destination */
-    INT32* table = (INT32*) context->table;
+    char* table = (char*) context->table;
     for (y = 0; y < imIn->ysize; y++) {
         UINT8* in = imIn->image8[y];
         INT32* out = imOut->image32[y];
-        for (x = 0; x < imIn->xsize; x++)
-            out[x] = table[in[x]];
+        for (x = 0; x < imIn->xsize; x++) {
+            memcpy(out + x, table + in[x] * sizeof(INT32), sizeof(INT32));
+        }
     }
 }
 
@@ -119,10 +121,11 @@ im_point_32_8(Imaging imOut, Imaging imIn, im_point_context* context)
         UINT8* out = imOut->image8[y];
         for (x = 0; x < imIn->xsize; x++) {
             int v = in[x];
-            if (v < 0)
+            if (v < 0) {
                 v = 0;
-            else if (v > 65535)
+            } else if (v > 65535) {
                 v = 65535;
+            }
             out[x] = table[v];
         }
     }
@@ -138,21 +141,26 @@ ImagingPoint(Imaging imIn, const char* mode, const void* table)
     im_point_context context;
     void (*point)(Imaging imIn, Imaging imOut, im_point_context* context);
 
-    if (!imIn)
-	return (Imaging) ImagingError_ModeError();
+    if (!imIn) {
+        return (Imaging) ImagingError_ModeError();
+    }
 
-    if (!mode)
+    if (!mode) {
         mode = imIn->mode;
+    }
 
     if (imIn->type != IMAGING_TYPE_UINT8) {
-        if (imIn->type != IMAGING_TYPE_INT32 || strcmp(mode, "L") != 0)
+        if (imIn->type != IMAGING_TYPE_INT32 || strcmp(mode, "L") != 0) {
             goto mode_mismatch;
-    } else if (!imIn->image8 && strcmp(imIn->mode, mode) != 0)
+        }
+    } else if (!imIn->image8 && strcmp(imIn->mode, mode) != 0) {
         goto mode_mismatch;
+    }
 
     imOut = ImagingNew(mode, imIn->xsize, imIn->ysize);
-    if (!imOut)
-	return NULL;
+    if (!imOut) {
+        return NULL;
+    }
 
     /* find appropriate handler */
     if (imIn->type == IMAGING_TYPE_UINT8) {
@@ -175,10 +183,12 @@ ImagingPoint(Imaging imIn, const char* mode, const void* table)
                 point = im_point_8_8;
                 break;
             }
-        } else
+        } else {
             point = im_point_8_32;
-    } else
+        }
+    } else {
         point = im_point_32_8;
+    }
 
     ImagingCopyPalette(imOut, imIn);
 
@@ -209,12 +219,14 @@ ImagingPointTransform(Imaging imIn, double scale, double offset)
 
     if (!imIn || (strcmp(imIn->mode, "I") != 0 &&
                   strcmp(imIn->mode, "I;16") != 0 &&
-                  strcmp(imIn->mode, "F") != 0))
-	return (Imaging) ImagingError_ModeError();
+                  strcmp(imIn->mode, "F") != 0)) {
+        return (Imaging) ImagingError_ModeError();
+    }
 
     imOut = ImagingNew(imIn->mode, imIn->xsize, imIn->ysize);
-    if (!imOut)
-	return NULL;
+    if (!imOut) {
+        return NULL;
+    }
 
     switch (imIn->type) {
     case IMAGING_TYPE_INT32:
@@ -223,8 +235,9 @@ ImagingPointTransform(Imaging imIn, double scale, double offset)
             INT32* in  = imIn->image32[y];
             INT32* out = imOut->image32[y];
             /* FIXME: add clipping? */
-            for (x = 0; x < imIn->xsize; x++)
+            for (x = 0; x < imIn->xsize; x++) {
                 out[x] = in[x] * scale + offset;
+            }
         }
         ImagingSectionLeave(&cookie);
         break;
@@ -233,8 +246,9 @@ ImagingPointTransform(Imaging imIn, double scale, double offset)
         for (y = 0; y < imIn->ysize; y++) {
             FLOAT32* in  = (FLOAT32*) imIn->image32[y];
             FLOAT32* out = (FLOAT32*) imOut->image32[y];
-            for (x = 0; x < imIn->xsize; x++)
+            for (x = 0; x < imIn->xsize; x++) {
                 out[x] = in[x] * scale + offset;
+            }
         }
         ImagingSectionLeave(&cookie);
         break;
@@ -242,15 +256,19 @@ ImagingPointTransform(Imaging imIn, double scale, double offset)
         if (strcmp(imIn->mode,"I;16") == 0) {
             ImagingSectionEnter(&cookie);
             for (y = 0; y < imIn->ysize; y++) {
-                UINT16* in  = (UINT16 *)imIn->image[y];
-                UINT16* out = (UINT16 *)imOut->image[y];
+                char* in  = (char*)imIn->image[y];
+                char* out = (char*)imOut->image[y];
                 /* FIXME: add clipping? */
-                for (x = 0; x < imIn->xsize; x++)
-                    out[x] = in[x] * scale + offset;
+                for (x = 0; x < imIn->xsize; x++) {
+                    UINT16 v;
+                    memcpy(&v, in + x * sizeof(v), sizeof(v));
+                    v = v * scale + offset;
+                    memcpy(out + x * sizeof(UINT16), &v, sizeof(v));
+                }
             }
             ImagingSectionLeave(&cookie);
             break;
-	}
+        }
         /* FALL THROUGH */
     default:
         ImagingDelete(imOut);

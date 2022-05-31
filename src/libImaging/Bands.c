@@ -26,23 +26,28 @@ ImagingGetBand(Imaging imIn, int band)
     int x, y;
 
     /* Check arguments */
-    if (!imIn || imIn->type != IMAGING_TYPE_UINT8)
+    if (!imIn || imIn->type != IMAGING_TYPE_UINT8) {
         return (Imaging) ImagingError_ModeError();
+    }
 
-    if (band < 0 || band >= imIn->bands)
+    if (band < 0 || band >= imIn->bands) {
         return (Imaging) ImagingError_ValueError("band index out of range");
+    }
 
     /* Shortcuts */
-    if (imIn->bands == 1)
+    if (imIn->bands == 1) {
         return ImagingCopy(imIn);
+    }
 
     /* Special case for LXXA etc */
-    if (imIn->bands == 2 && band == 1)
+    if (imIn->bands == 2 && band == 1) {
         band = 3;
+    }
 
     imOut = ImagingNewDirty("L", imIn->xsize, imIn->ysize);
-    if (!imOut)
+    if (!imOut) {
         return NULL;
+    }
 
     /* Extract band from image */
     for (y = 0; y < imIn->ysize; y++) {
@@ -50,7 +55,8 @@ ImagingGetBand(Imaging imIn, int band)
         UINT8* out = imOut->image8[y];
         x = 0;
         for (; x < imIn->xsize - 3; x += 4) {
-            *((UINT32*) (out + x)) = MAKE_UINT32(in[0], in[4], in[8], in[12]);
+            UINT32 v = MAKE_UINT32(in[0], in[4], in[8], in[12]);
+            memcpy(out + x, &v, sizeof(v));
             in += 16;
         }
         for (; x < imIn->xsize; x++) {
@@ -98,8 +104,10 @@ ImagingSplit(Imaging imIn, Imaging bands[4])
             UINT8* out1 = bands[1]->image8[y];
             x = 0;
             for (; x < imIn->xsize - 3; x += 4) {
-                *((UINT32*) (out0 + x)) = MAKE_UINT32(in[0], in[4], in[8], in[12]);
-                *((UINT32*) (out1 + x)) = MAKE_UINT32(in[0+3], in[4+3], in[8+3], in[12+3]);
+                UINT32 v = MAKE_UINT32(in[0], in[4], in[8], in[12]);
+                memcpy(out0 + x, &v, sizeof(v));
+                v = MAKE_UINT32(in[0+3], in[4+3], in[8+3], in[12+3]);
+                memcpy(out1 + x, &v, sizeof(v));
                 in += 16;
             }
             for (; x < imIn->xsize; x++) {
@@ -116,9 +124,12 @@ ImagingSplit(Imaging imIn, Imaging bands[4])
             UINT8* out2 = bands[2]->image8[y];
             x = 0;
             for (; x < imIn->xsize - 3; x += 4) {
-                *((UINT32*) (out0 + x)) = MAKE_UINT32(in[0], in[4], in[8], in[12]);
-                *((UINT32*) (out1 + x)) = MAKE_UINT32(in[0+1], in[4+1], in[8+1], in[12+1]);
-                *((UINT32*) (out2 + x)) = MAKE_UINT32(in[0+2], in[4+2], in[8+2], in[12+2]);
+                UINT32 v = MAKE_UINT32(in[0], in[4], in[8], in[12]);
+                memcpy(out0 + x, &v, sizeof(v));
+                v = MAKE_UINT32(in[0+1], in[4+1], in[8+1], in[12+1]);
+                memcpy(out1 + x, &v, sizeof(v));
+                v = MAKE_UINT32(in[0+2], in[4+2], in[8+2], in[12+2]);
+                memcpy(out2 + x, &v, sizeof(v));
                 in += 16;
             }
             for (; x < imIn->xsize; x++) {
@@ -137,10 +148,14 @@ ImagingSplit(Imaging imIn, Imaging bands[4])
             UINT8* out3 = bands[3]->image8[y];
             x = 0;
             for (; x < imIn->xsize - 3; x += 4) {
-                *((UINT32*) (out0 + x)) = MAKE_UINT32(in[0], in[4], in[8], in[12]);
-                *((UINT32*) (out1 + x)) = MAKE_UINT32(in[0+1], in[4+1], in[8+1], in[12+1]);
-                *((UINT32*) (out2 + x)) = MAKE_UINT32(in[0+2], in[4+2], in[8+2], in[12+2]);
-                *((UINT32*) (out3 + x)) = MAKE_UINT32(in[0+3], in[4+3], in[8+3], in[12+3]);
+                UINT32 v = MAKE_UINT32(in[0], in[4], in[8], in[12]);
+                memcpy(out0 + x, &v, sizeof(v));
+                v = MAKE_UINT32(in[0+1], in[4+1], in[8+1], in[12+1]);
+                memcpy(out1 + x, &v, sizeof(v));
+                v = MAKE_UINT32(in[0+2], in[4+2], in[8+2], in[12+2]);
+                memcpy(out2 + x, &v, sizeof(v));
+                v = MAKE_UINT32(in[0+3], in[4+3], in[8+3], in[12+3]);
+                memcpy(out3 + x, &v, sizeof(v));
                 in += 16;
             }
             for (; x < imIn->xsize; x++) {
@@ -163,24 +178,29 @@ ImagingPutBand(Imaging imOut, Imaging imIn, int band)
     int x, y;
 
     /* Check arguments */
-    if (!imIn || imIn->bands != 1 || !imOut)
+    if (!imIn || imIn->bands != 1 || !imOut) {
         return (Imaging) ImagingError_ModeError();
+    }
 
-    if (band < 0 || band >= imOut->bands)
+    if (band < 0 || band >= imOut->bands) {
         return (Imaging) ImagingError_ValueError("band index out of range");
+    }
 
     if (imIn->type  != imOut->type  ||
         imIn->xsize != imOut->xsize ||
-        imIn->ysize != imOut->ysize)
+        imIn->ysize != imOut->ysize) {
         return (Imaging) ImagingError_Mismatch();
+    }
 
     /* Shortcuts */
-    if (imOut->bands == 1)
+    if (imOut->bands == 1) {
         return ImagingCopy2(imOut, imIn);
+    }
 
     /* Special case for LXXA etc */
-    if (imOut->bands == 2 && band == 1)
+    if (imOut->bands == 2 && band == 1) {
         band = 3;
+    }
 
     /* Insert band into image */
     for (y = 0; y < imIn->ysize; y++) {
@@ -201,15 +221,18 @@ ImagingFillBand(Imaging imOut, int band, int color)
     int x, y;
 
     /* Check arguments */
-    if (!imOut || imOut->type != IMAGING_TYPE_UINT8)
+    if (!imOut || imOut->type != IMAGING_TYPE_UINT8) {
         return (Imaging) ImagingError_ModeError();
+    }
 
-    if (band < 0 || band >= imOut->bands)
+    if (band < 0 || band >= imOut->bands) {
         return (Imaging) ImagingError_ValueError("band index out of range");
+    }
 
     /* Special case for LXXA etc */
-    if (imOut->bands == 2 && band == 1)
+    if (imOut->bands == 2 && band == 1) {
         band = 3;
+    }
 
     color = CLIP8(color);
 
@@ -253,16 +276,18 @@ ImagingMerge(const char* mode, Imaging bands[4])
     bandsCount = i;
 
     imOut = ImagingNewDirty(mode, firstBand->xsize, firstBand->ysize);
-    if ( ! imOut)
+    if ( ! imOut) {
         return NULL;
+    }
 
     if (imOut->bands != bandsCount) {
         ImagingDelete(imOut);
         return (Imaging) ImagingError_ValueError("wrong number of bands");
     }
 
-    if (imOut->bands == 1)
+    if (imOut->bands == 1) {
         return ImagingCopy2(imOut, firstBand);
+    }
 
     if (imOut->bands == 2) {
         for (y = 0; y < imOut->ysize; y++) {
