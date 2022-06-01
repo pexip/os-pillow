@@ -39,7 +39,7 @@
  * See the README file for information on usage and redistribution.
  */
 
-#include "Imaging.h"
+#include "../libImaging/Imaging.h"
 #include "_tkmini.h"
 
 #include <stdlib.h>
@@ -63,13 +63,14 @@ ImagingFind(const char* name)
     Py_ssize_t id;
 
     /* FIXME: use CObject instead? */
-#if defined(_MSC_VER) && defined(_WIN64)
+#if defined(_WIN64)
     id = _atoi64(name);
 #else
     id = atol(name);
 #endif
-    if (!id)
+    if (!id) {
         return NULL;
+    }
 
     return (Imaging) id;
 }
@@ -113,16 +114,17 @@ PyImagingPhotoPut(ClientData clientdata, Tcl_Interp* interp,
 
     if (strcmp(im->mode, "1") == 0 || strcmp(im->mode, "L") == 0) {
         block.pixelSize = 1;
-        block.offset[0] = block.offset[1] = block.offset[2] = 0;
+        block.offset[0] = block.offset[1] = block.offset[2] = block.offset[3] = 0;
     } else if (strncmp(im->mode, "RGB", 3) == 0) {
         block.pixelSize = 4;
         block.offset[0] = 0;
         block.offset[1] = 1;
         block.offset[2] = 2;
-        if (strcmp(im->mode, "RGBA") == 0)
+        if (strcmp(im->mode, "RGBA") == 0) {
             block.offset[3] = 3; /* alpha (or reserved, under 8.2) */
-        else
+        } else {
             block.offset[3] = 0; /* no alpha */
+        }
     } else {
         TCL_APPEND_RESULT(interp, "Bad mode", (char*) NULL);
         return TCL_ERROR;
@@ -136,10 +138,11 @@ PyImagingPhotoPut(ClientData clientdata, Tcl_Interp* interp,
     if (TK_LT_85) { /* Tk 8.4 */
         TK_PHOTO_PUT_BLOCK_84(photo, &block, 0, 0, block.width, block.height,
                 TK_PHOTO_COMPOSITE_SET);
-        if (strcmp(im->mode, "RGBA") == 0)
+        if (strcmp(im->mode, "RGBA") == 0) {
             /* Tk workaround: we need apply ToggleComplexAlphaIfNeeded */
             /* (fixed in Tk 8.5a3) */
             TK_PHOTO_SET_SIZE_84(photo, block.width, block.height);
+        }
     } else {
         /* Tk >=8.5 */
         TK_PHOTO_PUT_BLOCK_85(interp, photo, &block, 0, 0, block.width,
@@ -149,17 +152,18 @@ PyImagingPhotoPut(ClientData clientdata, Tcl_Interp* interp,
     return TCL_OK;
 }
 
-/*  Warning -- this does not work at all */
 static int
 PyImagingPhotoGet(ClientData clientdata, Tcl_Interp* interp,
                int argc, const char **argv)
 {
+    Imaging im;
     Tk_PhotoHandle photo;
     Tk_PhotoImageBlock block;
+    int x, y, z;
 
-    if (argc != 2) {
+    if (argc != 3) {
         TCL_APPEND_RESULT(interp, "usage: ", argv[0],
-                         " srcPhoto", (char *) NULL);
+                         " srcPhoto destImage", (char *) NULL);
         return TCL_ERROR;
     }
 
@@ -172,21 +176,26 @@ PyImagingPhotoGet(ClientData clientdata, Tcl_Interp* interp,
         return TCL_ERROR;
     }
 
+    /* get PIL Image handle */
+    im = ImagingFind(argv[2]);
+    if (!im) {
+        TCL_APPEND_RESULT(interp, "bad name", (char*) NULL);
+        return TCL_ERROR;
+    }
+
     TK_PHOTO_GET_IMAGE(photo, &block);
 
-    printf("pixelPtr = %p\n", block.pixelPtr);
-    printf("width = %d\n", block.width);
-    printf("height = %d\n", block.height);
-    printf("pitch = %d\n", block.pitch);
-    printf("pixelSize = %d\n", block.pixelSize);
-    printf("offset = %d %d %d %d\n", block.offset[0], block.offset[1],
-           block.offset[2], block.offset[3]);
+    for (y = 0; y < block.height; y++) {
+        UINT8* out = (UINT8*)im->image32[y];
+        for (x = 0; x < block.pitch; x += block.pixelSize) {
+            for (z=0; z < block.pixelSize; z++) {
+                int offset = block.offset[z];
+                out[x + offset] = block.pixelPtr[y * block.pitch + x + offset];
+            }
+        }
+    }
 
-    TCL_APPEND_RESULT(
-        interp, "this function is not yet supported", (char *) NULL
-        );
-
-    return TCL_ERROR;
+    return TCL_OK;
 }
 
 
@@ -219,11 +228,7 @@ TkImaging_Init(Tcl_Interp* interp)
 #include <psapi.h>
 /* Must be linked with 'psapi' library */
 
-#if PY_VERSION_HEX >= 0x03000000
 #define TKINTER_PKG "tkinter"
-#else
-#define TKINTER_PKG "Tkinter"
-#endif
 
 FARPROC _dfunc(HMODULE lib_handle, const char *func_name)
 {
@@ -348,7 +353,6 @@ int load_tkinter_funcs(void)
  */
 
 /* From module __file__ attribute to char *string for dlopen. */
-#if PY_VERSION_HEX >= 0x03000000
 char *fname2char(PyObject *fname)
 {
     PyObject* bytes;
@@ -358,9 +362,6 @@ char *fname2char(PyObject *fname)
     }
     return PyBytes_AsString(bytes);
 }
-#else
-#define fname2char(s) (PyString_AsString(s))
-#endif
 
 #include <dlfcn.h>
 

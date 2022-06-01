@@ -20,26 +20,33 @@ ImagingFlipLeftRight(Imaging imOut, Imaging imIn)
     ImagingSectionCookie cookie;
     int x, y, xr;
 
-    if (!imOut || !imIn || strcmp(imIn->mode, imOut->mode) != 0)
+    if (!imOut || !imIn || strcmp(imIn->mode, imOut->mode) != 0) {
         return (Imaging) ImagingError_ModeError();
-    if (imIn->xsize != imOut->xsize || imIn->ysize != imOut->ysize)
+    }
+    if (imIn->xsize != imOut->xsize || imIn->ysize != imOut->ysize) {
         return (Imaging) ImagingError_Mismatch();
+    }
 
     ImagingCopyPalette(imOut, imIn);
 
 #define FLIP_LEFT_RIGHT(INT, image) \
     for (y = 0; y < imIn->ysize; y++) { \
-        INT* in = imIn->image[y]; \
-        INT* out = imOut->image[y]; \
+        INT* in = (INT *)imIn->image[y]; \
+        INT* out = (INT *)imOut->image[y]; \
         xr = imIn->xsize-1; \
-        for (x = 0; x < imIn->xsize; x++, xr--) \
+        for (x = 0; x < imIn->xsize; x++, xr--) { \
             out[xr] = in[x]; \
+        } \
     }
 
     ImagingSectionEnter(&cookie);
 
     if (imIn->image8) {
-        FLIP_LEFT_RIGHT(UINT8, image8)
+        if (strncmp(imIn->mode, "I;16", 4) == 0) {
+            FLIP_LEFT_RIGHT(UINT16, image8)
+        } else {
+            FLIP_LEFT_RIGHT(UINT8, image8)
+        }
     } else {
         FLIP_LEFT_RIGHT(INT32, image32)
     }
@@ -58,18 +65,21 @@ ImagingFlipTopBottom(Imaging imOut, Imaging imIn)
     ImagingSectionCookie cookie;
     int y, yr;
 
-    if (!imOut || !imIn || strcmp(imIn->mode, imOut->mode) != 0)
+    if (!imOut || !imIn || strcmp(imIn->mode, imOut->mode) != 0) {
         return (Imaging) ImagingError_ModeError();
-    if (imIn->xsize != imOut->xsize || imIn->ysize != imOut->ysize)
+    }
+    if (imIn->xsize != imOut->xsize || imIn->ysize != imOut->ysize) {
         return (Imaging) ImagingError_Mismatch();
+    }
 
     ImagingCopyPalette(imOut, imIn);
 
     ImagingSectionEnter(&cookie);
 
     yr = imIn->ysize - 1;
-    for (y = 0; y < imIn->ysize; y++, yr--)
+    for (y = 0; y < imIn->ysize; y++, yr--) {
         memcpy(imOut->image[yr], imIn->image[y], imIn->linesize);
+    }
 
     ImagingSectionLeave(&cookie);
 
@@ -84,10 +94,12 @@ ImagingRotate90(Imaging imOut, Imaging imIn)
     int x, y, xx, yy, xr, xxsize, yysize;
     int xxx, yyy, xxxsize, yyysize;
 
-    if (!imOut || !imIn || strcmp(imIn->mode, imOut->mode) != 0)
+    if (!imOut || !imIn || strcmp(imIn->mode, imOut->mode) != 0) {
         return (Imaging) ImagingError_ModeError();
-    if (imIn->xsize != imOut->ysize || imIn->ysize != imOut->xsize)
+    }
+    if (imIn->xsize != imOut->ysize || imIn->ysize != imOut->xsize) {
         return (Imaging) ImagingError_Mismatch();
+    }
 
     ImagingCopyPalette(imOut, imIn);
 
@@ -101,10 +113,11 @@ ImagingRotate90(Imaging imOut, Imaging imIn)
                     yyysize = yy + ROTATE_SMALL_CHUNK < imIn->ysize ? yy + ROTATE_SMALL_CHUNK : imIn->ysize; \
                     xxxsize = xx + ROTATE_SMALL_CHUNK < imIn->xsize ? xx + ROTATE_SMALL_CHUNK : imIn->xsize; \
                     for (yyy = yy; yyy < yyysize; yyy++) { \
-                        INT* in = imIn->image[yyy]; \
+                        INT* in = (INT *)imIn->image[yyy]; \
                         xr = imIn->xsize - 1 - xx; \
                         for (xxx = xx; xxx < xxxsize; xxx++, xr--) { \
-                            imOut->image[xr][yyy] = in[xxx]; \
+                            INT* out = (INT *)imOut->image[xr]; \
+                            out[yyy] = in[xxx]; \
                         } \
                     } \
                 } \
@@ -114,10 +127,15 @@ ImagingRotate90(Imaging imOut, Imaging imIn)
 
     ImagingSectionEnter(&cookie);
 
-    if (imIn->image8)
-        ROTATE_90(UINT8, image8)
-    else
-        ROTATE_90(INT32, image32)
+    if (imIn->image8) {
+        if (strncmp(imIn->mode, "I;16", 4) == 0) {
+            ROTATE_90(UINT16, image8);
+        } else {
+            ROTATE_90(UINT8, image8);
+        }
+    } else {
+        ROTATE_90(INT32, image32);
+    }
 
     ImagingSectionLeave(&cookie);
 
@@ -134,10 +152,12 @@ ImagingTranspose(Imaging imOut, Imaging imIn)
     int x, y, xx, yy, xxsize, yysize;
     int xxx, yyy, xxxsize, yyysize;
 
-    if (!imOut || !imIn || strcmp(imIn->mode, imOut->mode) != 0)
+    if (!imOut || !imIn || strcmp(imIn->mode, imOut->mode) != 0) {
         return (Imaging) ImagingError_ModeError();
-    if (imIn->xsize != imOut->ysize || imIn->ysize != imOut->xsize)
+    }
+    if (imIn->xsize != imOut->ysize || imIn->ysize != imOut->xsize) {
         return (Imaging) ImagingError_Mismatch();
+    }
 
     ImagingCopyPalette(imOut, imIn);
 
@@ -151,9 +171,10 @@ ImagingTranspose(Imaging imOut, Imaging imIn)
                     yyysize = yy + ROTATE_SMALL_CHUNK < imIn->ysize ? yy + ROTATE_SMALL_CHUNK : imIn->ysize; \
                     xxxsize = xx + ROTATE_SMALL_CHUNK < imIn->xsize ? xx + ROTATE_SMALL_CHUNK : imIn->xsize; \
                     for (yyy = yy; yyy < yyysize; yyy++) { \
-                        INT* in = imIn->image[yyy]; \
+                        INT* in = (INT *)imIn->image[yyy]; \
                         for (xxx = xx; xxx < xxxsize; xxx++) { \
-                            imOut->image[xxx][yyy] = in[xxx]; \
+                            INT* out = (INT *)imOut->image[xxx]; \
+                            out[yyy] = in[xxx]; \
                         } \
                     } \
                 } \
@@ -163,10 +184,15 @@ ImagingTranspose(Imaging imOut, Imaging imIn)
 
     ImagingSectionEnter(&cookie);
 
-    if (imIn->image8)
-        TRANSPOSE(UINT8, image8)
-    else
-        TRANSPOSE(INT32, image32)
+    if (imIn->image8) {
+        if (strncmp(imIn->mode, "I;16", 4) == 0) {
+            TRANSPOSE(UINT16, image8);
+        } else {
+            TRANSPOSE(UINT8, image8);
+        }
+    } else {
+        TRANSPOSE(INT32, image32);
+    }
 
     ImagingSectionLeave(&cookie);
 
@@ -183,10 +209,12 @@ ImagingTransverse(Imaging imOut, Imaging imIn)
     int x, y, xr, yr, xx, yy, xxsize, yysize;
     int xxx, yyy, xxxsize, yyysize;
 
-    if (!imOut || !imIn || strcmp(imIn->mode, imOut->mode) != 0)
+    if (!imOut || !imIn || strcmp(imIn->mode, imOut->mode) != 0) {
         return (Imaging) ImagingError_ModeError();
-    if (imIn->xsize != imOut->ysize || imIn->ysize != imOut->xsize)
+    }
+    if (imIn->xsize != imOut->ysize || imIn->ysize != imOut->xsize) {
         return (Imaging) ImagingError_Mismatch();
+    }
 
     ImagingCopyPalette(imOut, imIn);
 
@@ -201,10 +229,11 @@ ImagingTransverse(Imaging imOut, Imaging imIn)
                     xxxsize = xx + ROTATE_SMALL_CHUNK < imIn->xsize ? xx + ROTATE_SMALL_CHUNK : imIn->xsize; \
                     yr = imIn->ysize - 1 - yy; \
                     for (yyy = yy; yyy < yyysize; yyy++, yr--) { \
-                        INT* in = imIn->image[yyy]; \
+                        INT* in = (INT *)imIn->image[yyy]; \
                         xr = imIn->xsize - 1 - xx; \
                         for (xxx = xx; xxx < xxxsize; xxx++, xr--) { \
-                            imOut->image[xr][yr] = in[xxx]; \
+                            INT* out = (INT *)imOut->image[xr]; \
+                            out[yr] = in[xxx]; \
                         } \
                     } \
                 } \
@@ -214,10 +243,15 @@ ImagingTransverse(Imaging imOut, Imaging imIn)
 
     ImagingSectionEnter(&cookie);
 
-    if (imIn->image8)
-        TRANSVERSE(UINT8, image8)
-    else
-        TRANSVERSE(INT32, image32)
+    if (imIn->image8) {
+        if (strncmp(imIn->mode, "I;16", 4) == 0) {
+            TRANSVERSE(UINT16, image8);
+        } else {
+            TRANSVERSE(UINT8, image8);
+        }
+    } else {
+        TRANSVERSE(INT32, image32);
+    }
 
     ImagingSectionLeave(&cookie);
 
@@ -233,27 +267,34 @@ ImagingRotate180(Imaging imOut, Imaging imIn)
     ImagingSectionCookie cookie;
     int x, y, xr, yr;
 
-    if (!imOut || !imIn || strcmp(imIn->mode, imOut->mode) != 0)
+    if (!imOut || !imIn || strcmp(imIn->mode, imOut->mode) != 0) {
         return (Imaging) ImagingError_ModeError();
-    if (imIn->xsize != imOut->xsize || imIn->ysize != imOut->ysize)
+    }
+    if (imIn->xsize != imOut->xsize || imIn->ysize != imOut->ysize) {
         return (Imaging) ImagingError_Mismatch();
+    }
 
     ImagingCopyPalette(imOut, imIn);
 
 #define ROTATE_180(INT, image) \
     for (y = 0; y < imIn->ysize; y++, yr--) { \
-        INT* in = imIn->image[y]; \
-        INT* out = imOut->image[yr]; \
+        INT* in = (INT *)imIn->image[y]; \
+        INT* out = (INT *)imOut->image[yr]; \
         xr = imIn->xsize-1; \
-        for (x = 0; x < imIn->xsize; x++, xr--) \
+        for (x = 0; x < imIn->xsize; x++, xr--) { \
             out[xr] = in[x]; \
+        } \
     }
 
     ImagingSectionEnter(&cookie);
 
     yr = imIn->ysize-1;
     if (imIn->image8) {
-        ROTATE_180(UINT8, image8)
+        if (strncmp(imIn->mode, "I;16", 4) == 0) {
+            ROTATE_180(UINT16, image8)
+        } else {
+            ROTATE_180(UINT8, image8)
+        }
     } else {
         ROTATE_180(INT32, image32)
     }
@@ -273,10 +314,12 @@ ImagingRotate270(Imaging imOut, Imaging imIn)
     int x, y, xx, yy, yr, xxsize, yysize;
     int xxx, yyy, xxxsize, yyysize;
 
-    if (!imOut || !imIn || strcmp(imIn->mode, imOut->mode) != 0)
+    if (!imOut || !imIn || strcmp(imIn->mode, imOut->mode) != 0) {
         return (Imaging) ImagingError_ModeError();
-    if (imIn->xsize != imOut->ysize || imIn->ysize != imOut->xsize)
+    }
+    if (imIn->xsize != imOut->ysize || imIn->ysize != imOut->xsize) {
         return (Imaging) ImagingError_Mismatch();
+    }
 
     ImagingCopyPalette(imOut, imIn);
 
@@ -291,9 +334,10 @@ ImagingRotate270(Imaging imOut, Imaging imIn)
                     xxxsize = xx + ROTATE_SMALL_CHUNK < imIn->xsize ? xx + ROTATE_SMALL_CHUNK : imIn->xsize; \
                     yr = imIn->ysize - 1 - yy; \
                     for (yyy = yy; yyy < yyysize; yyy++, yr--) { \
-                        INT* in = imIn->image[yyy]; \
+                        INT* in = (INT *)imIn->image[yyy]; \
                         for (xxx = xx; xxx < xxxsize; xxx++) { \
-                            imOut->image[xxx][yr] = in[xxx]; \
+                            INT* out = (INT *)imOut->image[xxx]; \
+                            out[yr] = in[xxx]; \
                         } \
                     } \
                 } \
@@ -303,10 +347,15 @@ ImagingRotate270(Imaging imOut, Imaging imIn)
 
     ImagingSectionEnter(&cookie);
 
-    if (imIn->image8)
-        ROTATE_270(UINT8, image8)
-    else
-        ROTATE_270(INT32, image32)
+    if (imIn->image8) {
+        if (strncmp(imIn->mode, "I;16", 4) == 0) {
+            ROTATE_270(UINT16, image8);
+        } else {
+            ROTATE_270(UINT8, image8);
+        }
+    } else {
+        ROTATE_270(INT32, image32);
+    }
 
     ImagingSectionLeave(&cookie);
 
@@ -383,8 +432,9 @@ nearest_filter8(void* out, Imaging im, double xin, double yin)
 {
     int x = COORD(xin);
     int y = COORD(yin);
-    if (x < 0 || x >= im->xsize || y < 0 || y >= im->ysize)
+    if (x < 0 || x >= im->xsize || y < 0 || y >= im->ysize) {
         return 0;
+    }
     ((UINT8*)out)[0] = im->image8[y][x];
     return 1;
 }
@@ -394,9 +444,10 @@ nearest_filter16(void* out, Imaging im, double xin, double yin)
 {
     int x = COORD(xin);
     int y = COORD(yin);
-    if (x < 0 || x >= im->xsize || y < 0 || y >= im->ysize)
+    if (x < 0 || x >= im->xsize || y < 0 || y >= im->ysize) {
         return 0;
-    ((INT16*)out)[0] = ((INT16*)(im->image8[y]))[x];
+    }
+    memcpy(out, im->image8[y] + x * sizeof(INT16), sizeof(INT16));
     return 1;
 }
 
@@ -405,9 +456,10 @@ nearest_filter32(void* out, Imaging im, double xin, double yin)
 {
     int x = COORD(xin);
     int y = COORD(yin);
-    if (x < 0 || x >= im->xsize || y < 0 || y >= im->ysize)
+    if (x < 0 || x >= im->xsize || y < 0 || y >= im->ysize) {
         return 0;
-    ((INT32*)out)[0] = im->image32[y][x];
+    }
+    memcpy(out, &im->image32[y][x], sizeof(INT32));
     return 1;
 }
 
@@ -423,8 +475,9 @@ nearest_filter32(void* out, Imaging im, double xin, double yin)
     double v1, v2;\
     double dx, dy;\
     type* in;\
-    if (xin < 0.0 || xin >= im->xsize || yin < 0.0 || yin >= im->ysize)\
+    if (xin < 0.0 || xin >= im->xsize || yin < 0.0 || yin >= im->ysize) {\
         return 0;\
+    }\
     xin -= 0.5;\
     yin -= 0.5;\
     x = FLOOR(xin);\
@@ -440,8 +493,9 @@ nearest_filter32(void* out, Imaging im, double xin, double yin)
     if (y+1 >= 0 && y+1 < im->ysize) {\
         in = (type*) ((image)[y+1] + offset);\
         BILINEAR(v2, in[x0], in[x1], dx);\
-    } else\
+    } else {\
         v2 = v1;\
+    }\
     BILINEAR(v1, v1, v2, dy);\
 }
 
@@ -457,18 +511,22 @@ bilinear_filter8(void* out, Imaging im, double xin, double yin)
 static int
 bilinear_filter32I(void* out, Imaging im, double xin, double yin)
 {
+    INT32 k;
     BILINEAR_HEAD(INT32);
     BILINEAR_BODY(INT32, im->image32, 1, 0);
-    ((INT32*)out)[0] = (INT32) v1;
+    k = v1;
+    memcpy(out, &k, sizeof(k));
     return 1;
 }
 
 static int
 bilinear_filter32F(void* out, Imaging im, double xin, double yin)
 {
+    FLOAT32 k;
     BILINEAR_HEAD(FLOAT32);
     BILINEAR_BODY(FLOAT32, im->image32, 1, 0);
-    ((FLOAT32*)out)[0] = (FLOAT32) v1;
+    k = v1;
+    memcpy(out, &k, sizeof(k));
     return 1;
 }
 
@@ -516,8 +574,9 @@ bilinear_filter32RGB(void* out, Imaging im, double xin, double yin)
     double v1, v2, v3, v4;\
     double dx, dy;\
     type* in;\
-    if (xin < 0.0 || xin >= im->xsize || yin < 0.0 || yin >= im->ysize)\
+    if (xin < 0.0 || xin >= im->xsize || yin < 0.0 || yin >= im->ysize) {\
         return 0;\
+    }\
     xin -= 0.5;\
     yin -= 0.5;\
     x = FLOOR(xin);\
@@ -536,18 +595,21 @@ bilinear_filter32RGB(void* out, Imaging im, double xin, double yin)
     if (y+1 >= 0 && y+1 < im->ysize) {\
         in = (type*) ((image)[y+1] + offset);\
         BICUBIC(v2, in[x0], in[x1], in[x2], in[x3], dx);\
-    } else\
+    } else {\
         v2 = v1;\
+    }\
     if (y+2 >= 0 && y+2 < im->ysize) {\
         in = (type*) ((image)[y+2] + offset);\
         BICUBIC(v3, in[x0], in[x1], in[x2], in[x3], dx);\
-    } else\
+    } else {\
         v3 = v2;\
+    }\
     if (y+3 >= 0 && y+3 < im->ysize) {\
         in = (type*) ((image)[y+3] + offset);\
         BICUBIC(v4, in[x0], in[x1], in[x2], in[x3], dx);\
-    } else\
+    } else {\
         v4 = v3;\
+    }\
     BICUBIC(v1, v1, v2, v3, v4, dy);\
 }
 
@@ -557,30 +619,35 @@ bicubic_filter8(void* out, Imaging im, double xin, double yin)
 {
     BICUBIC_HEAD(UINT8);
     BICUBIC_BODY(UINT8, im->image8, 1, 0);
-    if (v1 <= 0.0)
+    if (v1 <= 0.0) {
         ((UINT8*)out)[0] = 0;
-    else if (v1 >= 255.0)
+    } else if (v1 >= 255.0) {
         ((UINT8*)out)[0] = 255;
-    else
+    } else {
         ((UINT8*)out)[0] = (UINT8) v1;
+    }
     return 1;
 }
 
 static int
 bicubic_filter32I(void* out, Imaging im, double xin, double yin)
 {
+    INT32 k;
     BICUBIC_HEAD(INT32);
     BICUBIC_BODY(INT32, im->image32, 1, 0);
-    ((INT32*)out)[0] = (INT32) v1;
+    k = v1;
+    memcpy(out, &k, sizeof(k));
     return 1;
 }
 
 static int
 bicubic_filter32F(void* out, Imaging im, double xin, double yin)
 {
+    FLOAT32 k;
     BICUBIC_HEAD(FLOAT32);
     BICUBIC_BODY(FLOAT32, im->image32, 1, 0);
-    ((FLOAT32*)out)[0] = (FLOAT32) v1;
+    k = v1;
+    memcpy(out, &k, sizeof(k));
     return 1;
 }
 
@@ -603,12 +670,13 @@ bicubic_filter32LA(void* out, Imaging im, double xin, double yin)
         ((UINT8*)out)[2] = (UINT8) v1;
     }
     BICUBIC_BODY(UINT8, im->image, 4, 3);
-    if (v1 <= 0.0)
+    if (v1 <= 0.0) {
         ((UINT8*)out)[3] = 0;
-    else if (v1 >= 255.0)
+    } else if (v1 >= 255.0) {
         ((UINT8*)out)[3] = 255;
-    else
+    } else {
         ((UINT8*)out)[3] = (UINT8) v1;
+    }
     return 1;
 }
 
@@ -619,12 +687,13 @@ bicubic_filter32RGB(void* out, Imaging im, double xin, double yin)
     BICUBIC_HEAD(UINT8);
     for (b = 0; b < im->bands; b++) {
         BICUBIC_BODY(UINT8, im->image, 4, b);
-        if (v1 <= 0.0)
+        if (v1 <= 0.0) {
             ((UINT8*)out)[b] = 0;
-        else if (v1 >= 255.0)
+        } else if (v1 >= 255.0) {
             ((UINT8*)out)[b] = 255;
-        else
+        } else {
             ((UINT8*)out)[b] = (UINT8) v1;
+        }
     }
     return 1;
 }
@@ -638,7 +707,7 @@ getfilter(Imaging im, int filterid)
 {
     switch (filterid) {
     case IMAGING_TRANSFORM_NEAREST:
-        if (im->image8)
+        if (im->image8) {
             switch (im->type) {
             case IMAGING_TYPE_UINT8:
                 return nearest_filter8;
@@ -652,19 +721,21 @@ getfilter(Imaging im, int filterid)
                     return nearest_filter32;
                 }
             }
-        else
+        } else {
             return nearest_filter32;
+        }
         break;
     case IMAGING_TRANSFORM_BILINEAR:
-        if (im->image8)
+        if (im->image8) {
             return bilinear_filter8;
-        else if (im->image32) {
+        } else if (im->image32) {
             switch (im->type) {
             case IMAGING_TYPE_UINT8:
-                if (im->bands == 2)
+                if (im->bands == 2) {
                     return bilinear_filter32LA;
-                else
+                } else {
                     return bilinear_filter32RGB;
+                }
             case IMAGING_TYPE_INT32:
                 return bilinear_filter32I;
             case IMAGING_TYPE_FLOAT32:
@@ -673,15 +744,16 @@ getfilter(Imaging im, int filterid)
         }
         break;
     case IMAGING_TRANSFORM_BICUBIC:
-        if (im->image8)
+        if (im->image8) {
             return bicubic_filter8;
-        else if (im->image32) {
+        } else if (im->image32) {
             switch (im->type) {
             case IMAGING_TYPE_UINT8:
-                if (im->bands == 2)
+                if (im->bands == 2) {
                     return bicubic_filter32LA;
-                else
+                } else {
                     return bicubic_filter32RGB;
+                }
             case IMAGING_TYPE_INT32:
                 return bicubic_filter32I;
             case IMAGING_TYPE_FLOAT32:
@@ -711,32 +783,39 @@ ImagingGenericTransform(
     double xx, yy;
 
     ImagingTransformFilter filter = getfilter(imIn, filterid);
-    if (!filter)
+    if (!filter) {
         return (Imaging) ImagingError_ValueError("bad filter number");
+    }
 
-    if (!imOut || !imIn || strcmp(imIn->mode, imOut->mode) != 0)
+    if (!imOut || !imIn || strcmp(imIn->mode, imOut->mode) != 0) {
         return (Imaging) ImagingError_ModeError();
+    }
 
     ImagingCopyPalette(imOut, imIn);
 
     ImagingSectionEnter(&cookie);
 
-    if (x0 < 0)
+    if (x0 < 0) {
         x0 = 0;
-    if (y0 < 0)
+    }
+    if (y0 < 0) {
         y0 = 0;
-    if (x1 > imOut->xsize)
+    }
+    if (x1 > imOut->xsize) {
         x1 = imOut->xsize;
-    if (y1 > imOut->ysize)
+    }
+    if (y1 > imOut->ysize) {
         y1 = imOut->ysize;
+    }
 
     for (y = y0; y < y1; y++) {
         out = imOut->image[y] + x0*imOut->pixelsize;
         for (x = x0; x < x1; x++) {
             if ( ! transform(&xx, &yy, x-x0, y-y0, transform_data) ||
                  ! filter(out, imIn, xx, yy)) {
-                if (fill)
+                if (fill) {
                     memset(out, 0, imOut->pixelsize);
+                }
             }
             out += imOut->pixelsize;
         }
@@ -761,19 +840,24 @@ ImagingScaleAffine(Imaging imOut, Imaging imIn,
     int xmin, xmax;
     int *xintab;
 
-    if (!imOut || !imIn || strcmp(imIn->mode, imOut->mode) != 0)
+    if (!imOut || !imIn || strcmp(imIn->mode, imOut->mode) != 0) {
         return (Imaging) ImagingError_ModeError();
+    }
 
     ImagingCopyPalette(imOut, imIn);
 
-    if (x0 < 0)
+    if (x0 < 0) {
         x0 = 0;
-    if (y0 < 0)
+    }
+    if (y0 < 0) {
         y0 = 0;
-    if (x1 > imOut->xsize)
+    }
+    if (x1 > imOut->xsize) {
         x1 = imOut->xsize;
-    if (y1 > imOut->ysize)
+    }
+    if (y1 > imOut->ysize) {
         y1 = imOut->ysize;
+    }
 
     /* malloc check ok, uses calloc for overflow */
     xintab = (int*) calloc(imOut->xsize, sizeof(int));
@@ -793,8 +877,9 @@ ImagingScaleAffine(Imaging imOut, Imaging imIn,
         xin = COORD(xo);
         if (xin >= 0 && xin < (int) imIn->xsize) {
             xmax = x+1;
-            if (x < xmin)
+            if (x < xmin) {
                 xmin = x;
+            }
             xintab[x] = xin;
         }
         xo += a[0];
@@ -805,12 +890,14 @@ ImagingScaleAffine(Imaging imOut, Imaging imIn,
         int yi = COORD(yo);\
         pixel *in, *out;\
         out = imOut->image[y];\
-        if (fill && x1 > x0)\
+        if (fill && x1 > x0) {\
             memset(out+x0, 0, (x1-x0)*sizeof(pixel));\
+        }\
         if (yi >= 0 && yi < imIn->ysize) {\
             in = imIn->image[yi];\
-            for (x = xmin; x < xmax; x++)\
+            for (x = xmin; x < xmax; x++) {\
                 out[x] = in[xintab[x]];\
+            }\
         }\
         yo += a[4];\
     }
@@ -875,14 +962,16 @@ affine_fixed(Imaging imOut, Imaging imIn,
         xx = a2;\
         yy = a5;\
         out = imOut->image[y];\
-        if (fill && x1 > x0)\
+        if (fill && x1 > x0) {\
             memset(out+x0, 0, (x1-x0)*sizeof(pixel));\
+        }\
         for (x = x0; x < x1; x++, out++) {\
             xin = xx >> 16;\
             if (xin >= 0 && xin < xsize) {\
                 yin = yy >> 16;\
-                if (yin >= 0 && yin < ysize)\
+                if (yin >= 0 && yin < ysize) {\
                     *out = imIn->image[yin][xin];\
+                }\
             }\
             xx += a0;\
             yy += a3;\
@@ -893,10 +982,11 @@ affine_fixed(Imaging imOut, Imaging imIn,
 
     ImagingSectionEnter(&cookie);
 
-    if (imIn->image8)
+    if (imIn->image8) {
         AFFINE_TRANSFORM_FIXED(UINT8, image8)
-    else
+    } else {
         AFFINE_TRANSFORM_FIXED(INT32, image32)
+    }
 
     ImagingSectionLeave(&cookie);
 
@@ -933,24 +1023,30 @@ ImagingTransformAffine(Imaging imOut, Imaging imIn,
         return ImagingScaleAffine(imOut, imIn, x0, y0, x1, y1, a, fill);
     }
 
-    if (!imOut || !imIn || strcmp(imIn->mode, imOut->mode) != 0)
+    if (!imOut || !imIn || strcmp(imIn->mode, imOut->mode) != 0) {
         return (Imaging) ImagingError_ModeError();
+    }
 
-    if (x0 < 0)
+    if (x0 < 0) {
         x0 = 0;
-    if (y0 < 0)
+    }
+    if (y0 < 0) {
         y0 = 0;
-    if (x1 > imOut->xsize)
+    }
+    if (x1 > imOut->xsize) {
         x1 = imOut->xsize;
-    if (y1 > imOut->ysize)
+    }
+    if (y1 > imOut->ysize) {
         y1 = imOut->ysize;
+    }
 
     /* translate all four corners to check if they are within the
        range that can be represented by the fixed point arithmetics */
 
     if (check_fixed(a, 0, 0) && check_fixed(a, x1-x0, y1-y0) &&
-        check_fixed(a, 0, y1-y0) && check_fixed(a, x1-x0, 0))
+        check_fixed(a, 0, y1-y0) && check_fixed(a, x1-x0, 0)) {
         return affine_fixed(imOut, imIn, x0, y0, x1, y1, a, filterid, fill);
+    }
 
     /* FIXME: cannot really think of any reasonable case when the
        following code is used.  maybe we should fall back on the slow
@@ -970,14 +1066,16 @@ ImagingTransformAffine(Imaging imOut, Imaging imIn,
         xx = xo;\
         yy = yo;\
         out = imOut->image[y];\
-        if (fill && x1 > x0)\
+        if (fill && x1 > x0) {\
             memset(out+x0, 0, (x1-x0)*sizeof(pixel));\
+        }\
         for (x = x0; x < x1; x++, out++) {\
             xin = COORD(xx);\
             if (xin >= 0 && xin < xsize) {\
                 yin = COORD(yy);\
-                if (yin >= 0 && yin < ysize)\
+                if (yin >= 0 && yin < ysize) {\
                     *out = imIn->image[yin][xin];\
+                }\
             }\
             xx += a[0];\
             yy += a[3];\
@@ -988,10 +1086,11 @@ ImagingTransformAffine(Imaging imOut, Imaging imIn,
 
     ImagingSectionEnter(&cookie);
 
-    if (imIn->image8)
+    if (imIn->image8) {
         AFFINE_TRANSFORM(UINT8, image8)
-    else
+    } else {
         AFFINE_TRANSFORM(INT32, image32)
+    }
 
     ImagingSectionLeave(&cookie);
 

@@ -3,104 +3,22 @@ Section: python
 Priority: optional
 Maintainer: Pexip AS <packaging@pexip.com>
 XSBC-Pexip-Original-Maintainer: Matthias Klose <doko@debian.org>
-Build-Depends: debhelper (>= 9), tk-dev, dpkg-dev (>= 1.16.1~),
+Build-Depends: debhelper (>= 11), tk-dev, dpkg-dev (>= 1.16.1~),
   dh-python,
-  python2.7-dev (>= 2.7.8-4),
-  python-all-dev, python-all-dbg, python-setuptools,
+  python2,
   python3-all-dev, python3-all-dbg, python3-setuptools,
-  python-tk, python-tk-dbg,
   python3-tk, python3-tk-dbg,
-  python-pytest, python3-pytest,
-  python-olefile, python3-olefile,
+  python3-pytest,
+  python3-olefile,
+  python3-cffi,
   libfreetype6-dev, libjpeg-dev, zlib1g-dev, liblcms2-dev,
-#  libtiff5-dev | libtiff-dev, libwebp-dev,
-  libraqm-dev,
-Build-Depends-Indep: python3-sphinx, python3-sphinx-rtd-theme,
-Build-Conflicts: python-cffi, python3-cffi
-Standards-Version: 4.3.0
+# libtiff5-dev | libtiff-dev, libwebp-dev, libraqm-dev,
+#  libimagequant-dev,
+Build-Depends-Indep: python3-sphinx, python3-sphinx-rtd-theme, python3-sphinx-issues,
+Standards-Version: 4.5.1
 Homepage: http://python-pillow.github.io/
 XS-Testsuite: autopkgtest
 XS-Pexip-Upstream: http://deb.debian.org/debian/ bullseye
-
-Package: python-pil
-Architecture: any
-Multi-Arch: same
-Depends: ${python:Depends}, mime-support | python-pil.imagetk,
-  ${shlibs:Depends}, ${misc:Depends}
-Recommends: python-olefile
-Suggests: python-pil-doc, python-pil-dbg
-Provides: ${python:Provides}, python-pillow
-Breaks: python-imaging (<< 1.1.7+2.0.0-1.1),
-  rapid-photo-downloader (<< 0.4.11), 
-  tilestache (<< 1.49.8-3),
-Replaces: python-imaging (<< 1.1.7+2.0.0-1.1)
-Description: Python Imaging Library (Pillow fork)
- The Python Imaging Library (PIL) adds an image object to your Python
- interpreter. You can load images from a variety of file formats, and
- apply a rich set of image operations to them.
- .
- Image Objects:
-  o Bilevel, greyscale, palette, true colour (RGB), true colour with
-    transparency (RGBA).
-  o colour separation (CMYK).
-  o Copy, cut, paste operations.
-  o Flip, transpose, resize, rotate, and arbitrary affine transforms.
-  o Transparency operations.
-  o Channel and point operations.
-  o Colour transforms, including matrix operations.
-  o Image enhancement, including convolution filters.
- .
- File Formats:
-  o Full (Open/Load/Save): BMP, EPS (with ghostscript), GIF, IM, JPEG,
-    MSP, PDF, PNG, PPM, TIFF, XBM.
-  o Read only (Open/Load): ARG, CUR, DCX, FLI, FPX, GBR, GD, ICO, IMT, IPTC,
-    MCIDAS, MPEG, PhotoCD, PCX, PIXAR, PSD, TGA, SGI, SUN, TGA, WMF, XPM.
-  o Save only: PDF, EPS (without ghostscript).
-
-Package: python-pil-dbg
-Section: debug
-Priority: optional
-Architecture: any
-Multi-Arch: same
-Depends: python-pil (= ${binary:Version}), python-dbg,
-  ${shlibs:Depends}, ${misc:Depends}
-Provides: python-imaging-dbg
-Breaks: python-imaging-dbg (<< 1.1.7+2.0.0-1.1)
-Replaces: python-imaging-dbg (<< 1.1.7+2.0.0-1.1)
-Description: Python Imaging Library (debug extension)
- The Python Imaging Library (PIL) adds an image object to your Python
- interpreter. You can load images from a variety of file formats, and
- apply a rich set of image operations to them.
- .
- This package contains the extension built for the Python debug interpreter.
-
-Package: python-pil.imagetk
-Architecture: any
-Multi-Arch: same
-Depends: python-pil (= ${binary:Version}), python-tk (>= 2.7.7-2),
-  ${python:Depends}, ${shlibs:Depends}, ${misc:Depends}
-Suggests: python-pil-doc, python-pil.imagetk-dbg
-Provides: ${python:Provides}, python-imaging-tk
-Breaks: python-imaging-tk (<< 1.1.7+2.0.0-1.1)
-Replaces: python-imaging-tk (<< 1.1.7+2.0.0-1.1)
-Description: Python Imaging Library - ImageTk Module (Pillow fork)
- Tk dependent python-pil module.
-
-Package: python-pil.imagetk-dbg
-Section: debug
-Priority: optional
-Architecture: any
-Multi-Arch: same
-Depends: python-pil.imagetk (= ${binary:Version}),
-  python-pil-dbg (= ${binary:Version}),
-  python-dbg, ${shlibs:Depends}, ${misc:Depends}
-Provides: python-imaging-tk-dbg
-Breaks: python-imaging-tk-dbg (<< 1.1.7+2.0.0-1.1)
-Replaces: python-imaging-tk-dbg (<< 1.1.7+2.0.0-1.1)
-Description: Python Imaging Library - ImageTk Module (debug extension)
- Tk dependent python-pil module.
- .
- This package contains the extension built for the Python debug interpreter.
 
 Package: python3-pil
 Architecture: any
@@ -185,7 +103,7 @@ Section: doc
 Architecture: all
 Multi-Arch: foreign
 Depends: ${misc:Depends}, ${sphinxdoc:Depends}
-Suggests: python-doc, python3-pil | python-pil, python3-pil.imagetk | python-pil.imagetk
+Suggests: python3-doc, python3-pil, python3-pil.imagetk
 Description: Examples for the Python Imaging Library
  The Python Imaging Library (PIL) adds an image object to your
  Python interpreter. You can load image objects from a variety of file
