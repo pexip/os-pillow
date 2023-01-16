@@ -1,8 +1,89 @@
-pillow (8.1.2+dfsg-0.3+deb11u1) bullseye-security; urgency=medium
+pillow (9.4.0-1.1) unstable; urgency=medium
 
-  * CVE-2022-22815 CVE-2022-22816 CVE-2022-22817
+  * Non-maintainer upload.
+  * Handle more than one directory returned by pkg-config (Closes: #1028904).
 
- -- Moritz Mühlenhoff <jmm@debian.org>  Fri, 14 Jan 2022 16:44:08 +0100
+ -- Bastian Germann <bage@debian.org>  Mon, 16 Jan 2023 16:29:25 +0100
+
+pillow (9.4.0-1) unstable; urgency=medium
+
+  * New upstream version.
+
+ -- Matthias Klose <doko@debian.org>  Tue, 03 Jan 2023 10:06:46 +0100
+
+pillow (9.3.0-1) unstable; urgency=medium
+
+  * New upstream version.
+  * Bump standards version.
+
+ -- Matthias Klose <doko@debian.org>  Mon, 26 Dec 2022 12:37:12 +0100
+
+pillow (9.2.0-1.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Add patch to fix FTBFS (Closes: #1020043)
+
+ -- Nilesh Patra <nilesh@debian.org>  Fri, 21 Oct 2022 15:53:14 +0000
+
+pillow (9.2.0-1) unstable; urgency=medium
+
+  * New upstream version.
+
+ -- Matthias Klose <doko@debian.org>  Sun, 17 Jul 2022 13:57:17 +0200
+
+pillow (9.1.1-1) unstable; urgency=medium
+
+  * New upstream version.
+    - CVE-2022-30595: When reading past the end of a TGA scan line,
+      reduce bytes left.
+    - Do not open images with zero or negative height (#6269).
+
+ -- Matthias Klose <doko@debian.org>  Fri, 27 May 2022 11:56:13 +0200
+
+pillow (9.1.0-1) unstable; urgency=medium
+
+  * New upstream version.
+
+ -- Matthias Klose <doko@debian.org>  Mon, 04 Apr 2022 13:08:08 +0200
+
+pillow (9.0.1-1) unstable; urgency=medium
+
+  * New upstream version.
+  * Fix documentation build error with Python 3.10 (Heinrich Schuchardt).
+
+ -- Matthias Klose <doko@debian.org>  Fri, 18 Feb 2022 01:07:13 +0100
+
+pillow (9.0.0-1) unstable; urgency=medium
+
+  * New upstream version.
+
+ -- Matthias Klose <doko@debian.org>  Mon, 10 Jan 2022 10:52:08 +0100
+
+pillow (8.4.0-1) unstable; urgency=medium
+
+  * New upstream version.
+
+ -- Matthias Klose <doko@debian.org>  Thu, 25 Nov 2021 13:17:45 +0100
+
+pillow (8.3.2-1) unstable; urgency=medium
+
+  * New upstream version.
+  * Bump standards version.
+
+ -- Matthias Klose <doko@debian.org>  Mon, 11 Oct 2021 15:35:03 +0200
+
+pillow (8.2.0-1) experimental; urgency=medium
+
+  * New upstream version.
+  * Build-depend on libopenjp2-7-dev. Closes: #904478.
+
+ -- Matthias Klose <doko@debian.org>  Thu, 15 Apr 2021 11:37:53 +0200
+
+pillow (8.1.2+dfsg-1) unstable; urgency=medium
+
+  * Stop building the python3-*-dbg packages. Closes: #994317.
+
+ -- Matthias Klose <doko@debian.org>  Wed, 15 Sep 2021 14:16:02 +0200
 
 pillow (8.1.2+dfsg-0.3) unstable; urgency=high
 

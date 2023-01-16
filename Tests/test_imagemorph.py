@@ -3,7 +3,7 @@ import pytest
 
 from PIL import Image, ImageMorph, _imagingmorph
 
-from .helper import assert_image_equal, hopper
+from .helper import assert_image_equal_tofile, hopper
 
 
 def string_to_img(image_string):
@@ -48,17 +48,12 @@ def img_string_normalize(im):
     return img_to_string(string_to_img(im))
 
 
-def assert_img_equal(A, B):
-    assert img_to_string(A) == img_to_string(B)
-
-
-def assert_img_equal_img_string(A, Bstring):
-    assert img_to_string(A) == img_string_normalize(Bstring)
+def assert_img_equal_img_string(a, b_string):
+    assert img_to_string(a) == img_string_normalize(b_string)
 
 
 def test_str_to_img():
-    with Image.open("Tests/images/morph_a.png") as im:
-        assert_image_equal(A, im)
+    assert_image_equal_tofile(A, "Tests/images/morph_a.png")
 
 
 def create_lut():
@@ -70,14 +65,16 @@ def create_lut():
 
 
 # create_lut()
-def test_lut():
-    for op in ("corner", "dilation4", "dilation8", "erosion4", "erosion8", "edge"):
-        lb = ImageMorph.LutBuilder(op_name=op)
-        assert lb.get_lut() is None
+@pytest.mark.parametrize(
+    "op", ("corner", "dilation4", "dilation8", "erosion4", "erosion8", "edge")
+)
+def test_lut(op):
+    lb = ImageMorph.LutBuilder(op_name=op)
+    assert lb.get_lut() is None
 
-        lut = lb.build_lut()
-        with open(f"Tests/images/{op}.lut", "rb") as f:
-            assert lut == bytearray(f.read())
+    lut = lb.build_lut()
+    with open(f"Tests/images/{op}.lut", "rb") as f:
+        assert lut == bytearray(f.read())
 
 
 def test_no_operator_loaded():
@@ -236,19 +233,19 @@ def test_negate():
     )
 
 
-def test_non_binary_images():
+def test_incorrect_mode():
     im = hopper("RGB")
     mop = ImageMorph.MorphOp(op_name="erosion8")
 
-    with pytest.raises(Exception) as e:
+    with pytest.raises(ValueError) as e:
         mop.apply(im)
-    assert str(e.value) == "Image must be binary, meaning it must use mode L"
-    with pytest.raises(Exception) as e:
+    assert str(e.value) == "Image mode must be L"
+    with pytest.raises(ValueError) as e:
         mop.match(im)
-    assert str(e.value) == "Image must be binary, meaning it must use mode L"
-    with pytest.raises(Exception) as e:
+    assert str(e.value) == "Image mode must be L"
+    with pytest.raises(ValueError) as e:
         mop.get_on_pixels(im)
-    assert str(e.value) == "Image must be binary, meaning it must use mode L"
+    assert str(e.value) == "Image mode must be L"
 
 
 def test_add_patterns():

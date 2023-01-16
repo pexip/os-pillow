@@ -1,3 +1,2 @@
 version=3
-opts="oversionmangle=s/(.*)/$1+dfsg/, dversionmangle=s/\+dfsg\d*$//" \
 http://pypi.debian.net/Pillow/Pillow-(.*)\.(?:tar\.gz|zip)
