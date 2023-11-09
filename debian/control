@@ -18,7 +18,7 @@ Build-Depends-Indep: python3-sphinx, python3-sphinx-rtd-theme, python3-sphinx-is
 Standards-Version: 4.5.1
 Homepage: http://python-pillow.github.io/
 XS-Testsuite: autopkgtest
-XS-Pexip-Upstream: http://deb.debian.org/debian/ bullseye
+XS-Pexip-Upstream: http://deb.debian.org/debian/ bookworm
 
 Package: python3-pil
 Architecture: any
