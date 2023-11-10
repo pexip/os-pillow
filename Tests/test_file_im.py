@@ -1,10 +1,11 @@
 import filecmp
+import warnings
 
 import pytest
 
 from PIL import Image, ImImagePlugin
 
-from .helper import assert_image_equal, hopper, is_pypy
+from .helper import assert_image_equal_tofile, hopper, is_pypy
 
 # sample im
 TEST_IM = "Tests/images/hopper.im"
@@ -35,20 +36,16 @@ def test_unclosed_file():
 
 
 def test_closed_file():
-    def open():
+    with warnings.catch_warnings():
         im = Image.open(TEST_IM)
         im.load()
         im.close()
 
-    pytest.warns(None, open)
-
 
 def test_context_manager():
-    def open():
+    with warnings.catch_warnings():
         with Image.open(TEST_IM) as im:
             im.load()
-
-    pytest.warns(None, open)
 
 
 def test_tell():
@@ -81,16 +78,24 @@ def test_eoferror():
         im.seek(n_frames - 1)
 
 
-def test_roundtrip(tmp_path):
-    def roundtrip(mode):
-        out = str(tmp_path / "temp.im")
-        im = hopper(mode)
-        im.save(out)
-        with Image.open(out) as reread:
-            assert_image_equal(reread, im)
+@pytest.mark.parametrize("mode", ("RGB", "P", "PA"))
+def test_roundtrip(mode, tmp_path):
+    out = str(tmp_path / "temp.im")
+    im = hopper(mode)
+    im.save(out)
+    assert_image_equal_tofile(im, out)
 
-    for mode in ["RGB", "P", "PA"]:
-        roundtrip(mode)
+
+def test_small_palette(tmp_path):
+    im = Image.new("P", (1, 1))
+    colors = [0, 1, 2]
+    im.putpalette(colors)
+
+    out = str(tmp_path / "temp.im")
+    im.save(out)
+
+    with Image.open(out) as reloaded:
+        assert reloaded.getpalette() == colors + [0] * 765
 
 
 def test_save_unsupported_mode(tmp_path):

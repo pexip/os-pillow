@@ -3,12 +3,13 @@ import io
 import itertools
 import os
 import re
+import sys
 from collections import namedtuple
-from ctypes import c_float
 
 import pytest
 
 from PIL import Image, ImageFilter, TiffImagePlugin, TiffTags, features
+from PIL.TiffImagePlugin import SAMPLEFORMAT, STRIPOFFSETS, SUBIFD
 
 from .helper import (
     assert_image_equal,
@@ -16,7 +17,7 @@ from .helper import (
     assert_image_similar,
     assert_image_similar_tofile,
     hopper,
-    is_big_endian,
+    mark_if_feature_version,
     skip_unless_feature,
 )
 
@@ -96,24 +97,22 @@ class TestFileLibTiff(LibTiffTestCase):
             self._assert_noerr(tmp_path, im)
 
     def test_g4_eq_png(self):
-        """ Checking that we're actually getting the data that we expect"""
+        """Checking that we're actually getting the data that we expect"""
         with Image.open("Tests/images/hopper_bw_500.png") as png:
-            with Image.open("Tests/images/hopper_g4_500.tif") as g4:
-                assert_image_equal(g4, png)
+            assert_image_equal_tofile(png, "Tests/images/hopper_g4_500.tif")
 
     # see https://github.com/python-pillow/Pillow/issues/279
     def test_g4_fillorder_eq_png(self):
-        """ Checking that we're actually getting the data that we expect"""
-        with Image.open("Tests/images/g4-fillorder-test.png") as png:
-            with Image.open("Tests/images/g4-fillorder-test.tif") as g4:
-                assert_image_equal(g4, png)
+        """Checking that we're actually getting the data that we expect"""
+        with Image.open("Tests/images/g4-fillorder-test.tif") as g4:
+            assert_image_equal_tofile(g4, "Tests/images/g4-fillorder-test.png")
 
     def test_g4_write(self, tmp_path):
         """Checking to see that the saved image is the same as what we wrote"""
         test_file = "Tests/images/hopper_g4_500.tif"
         with Image.open(test_file) as orig:
             out = str(tmp_path / "temp.tif")
-            rot = orig.transpose(Image.ROTATE_90)
+            rot = orig.transpose(Image.Transpose.ROTATE_90)
             assert rot.size == (500, 500)
             rot.save(out)
 
@@ -137,54 +136,52 @@ class TestFileLibTiff(LibTiffTestCase):
 
             assert_image_equal_tofile(im, "Tests/images/tiff_adobe_deflate.png")
 
-    def test_write_metadata(self, tmp_path):
-        """ Test metadata writing through libtiff """
-        for legacy_api in [False, True]:
-            f = str(tmp_path / "temp.tiff")
-            with Image.open("Tests/images/hopper_g4.tif") as img:
-                img.save(f, tiffinfo=img.tag)
+    @pytest.mark.parametrize("legacy_api", (False, True))
+    def test_write_metadata(self, legacy_api, tmp_path):
+        """Test metadata writing through libtiff"""
+        f = str(tmp_path / "temp.tiff")
+        with Image.open("Tests/images/hopper_g4.tif") as img:
+            img.save(f, tiffinfo=img.tag)
 
-                if legacy_api:
-                    original = img.tag.named()
-                else:
-                    original = img.tag_v2.named()
+            if legacy_api:
+                original = img.tag.named()
+            else:
+                original = img.tag_v2.named()
 
-            # PhotometricInterpretation is set from SAVE_INFO,
-            # not the original image.
-            ignored = [
-                "StripByteCounts",
-                "RowsPerStrip",
-                "PageNumber",
-                "PhotometricInterpretation",
-            ]
+        # PhotometricInterpretation is set from SAVE_INFO,
+        # not the original image.
+        ignored = [
+            "StripByteCounts",
+            "RowsPerStrip",
+            "PageNumber",
+            "PhotometricInterpretation",
+        ]
 
-            with Image.open(f) as loaded:
-                if legacy_api:
-                    reloaded = loaded.tag.named()
-                else:
-                    reloaded = loaded.tag_v2.named()
+        with Image.open(f) as loaded:
+            if legacy_api:
+                reloaded = loaded.tag.named()
+            else:
+                reloaded = loaded.tag_v2.named()
 
-            for tag, value in itertools.chain(reloaded.items(), original.items()):
-                if tag not in ignored:
-                    val = original[tag]
-                    if tag.endswith("Resolution"):
-                        if legacy_api:
-                            assert (
-                                c_float(val[0][0] / val[0][1]).value
-                                == c_float(value[0][0] / value[0][1]).value
-                            ), f"{tag} didn't roundtrip"
-                        else:
-                            assert (
-                                c_float(val).value == c_float(value).value
-                            ), f"{tag} didn't roundtrip"
+        for tag, value in itertools.chain(reloaded.items(), original.items()):
+            if tag not in ignored:
+                val = original[tag]
+                if tag.endswith("Resolution"):
+                    if legacy_api:
+                        assert val[0][0] / val[0][1] == (
+                            4294967295 / 113653537
+                        ), f"{tag} didn't roundtrip"
                     else:
-                        assert val == value, f"{tag} didn't roundtrip"
+                        assert val == 37.79000115940079, f"{tag} didn't roundtrip"
+                else:
+                    assert val == value, f"{tag} didn't roundtrip"
 
-            # https://github.com/python-pillow/Pillow/issues/1561
-            requested_fields = ["StripByteCounts", "RowsPerStrip", "StripOffsets"]
-            for field in requested_fields:
-                assert field in reloaded, f"{field} not in metadata"
+        # https://github.com/python-pillow/Pillow/issues/1561
+        requested_fields = ["StripByteCounts", "RowsPerStrip", "StripOffsets"]
+        for field in requested_fields:
+            assert field in reloaded, f"{field} not in metadata"
 
+    @pytest.mark.valgrind_known_error(reason="Known invalid metadata")
     def test_additional_metadata(self, tmp_path):
         # these should not crash. Seriously dummy data, most of it doesn't make
         # any sense, so we're running up against limits where we're asking
@@ -218,7 +215,7 @@ class TestFileLibTiff(LibTiffTestCase):
             values = {
                 2: "test",
                 3: 1,
-                4: 2 ** 20,
+                4: 2**20,
                 5: TiffImagePlugin.IFDRational(100, 1),
                 12: 1.05,
             }
@@ -322,6 +319,14 @@ class TestFileLibTiff(LibTiffTestCase):
                 }
             )
         TiffImagePlugin.WRITE_LIBTIFF = False
+
+    def test_subifd(self, tmp_path):
+        outfile = str(tmp_path / "temp.tif")
+        with Image.open("Tests/images/g4_orientation_6.tif") as im:
+            im.tag_v2[SUBIFD] = 10000
+
+            # Should not segfault
+            im.save(outfile)
 
     def test_xmlpacket_tag(self, tmp_path):
         TiffImagePlugin.WRITE_LIBTIFF = True
@@ -427,10 +432,7 @@ class TestFileLibTiff(LibTiffTestCase):
         im = im.filter(ImageFilter.GaussianBlur(4))
         im.save(out, compression="tiff_adobe_deflate")
 
-        with Image.open(out) as im2:
-            im2.load()
-
-            assert_image_equal(im, im2)
+        assert_image_equal_tofile(im, out)
 
     def test_compressions(self, tmp_path):
         # Test various tiff compressions and assert similar image content but reduced
@@ -443,8 +445,7 @@ class TestFileLibTiff(LibTiffTestCase):
         for compression in ("packbits", "tiff_lzw"):
             im.save(out, compression=compression)
             size_compressed = os.path.getsize(out)
-            with Image.open(out) as im2:
-                assert_image_equal(im, im2)
+            assert_image_equal_tofile(im, out)
 
         im.save(out, compression="jpeg")
         size_jpeg = os.path.getsize(out)
@@ -453,8 +454,7 @@ class TestFileLibTiff(LibTiffTestCase):
 
         im.save(out, compression="jpeg", quality=30)
         size_jpeg_30 = os.path.getsize(out)
-        with Image.open(out) as im3:
-            assert_image_similar(im2, im3, 30)
+        assert_image_similar_tofile(im2, out, 30)
 
         assert size_raw > size_compressed
         assert size_compressed > size_jpeg
@@ -467,6 +467,14 @@ class TestFileLibTiff(LibTiffTestCase):
 
         with Image.open(out) as reloaded:
             assert reloaded.info["compression"] == "jpeg"
+
+    def test_tiff_deflate_compression(self, tmp_path):
+        im = hopper("RGB")
+        out = str(tmp_path / "temp.tif")
+        im.save(out, compression="tiff_deflate")
+
+        with Image.open(out) as reloaded:
+            assert reloaded.info["compression"] == "tiff_adobe_deflate"
 
     def test_quality(self, tmp_path):
         im = hopper("RGB")
@@ -488,11 +496,10 @@ class TestFileLibTiff(LibTiffTestCase):
         out = str(tmp_path / "temp.tif")
 
         im.save(out, compression="tiff_adobe_deflate")
-        with Image.open(out) as im2:
-            assert_image_equal(im, im2)
+        assert_image_equal_tofile(im, out)
 
-    def test_palette_save(self, tmp_path):
-        im = hopper("P")
+    @pytest.mark.parametrize("im", (hopper("P"), Image.new("P", (1, 1), "#000")))
+    def test_palette_save(self, im, tmp_path):
         out = str(tmp_path / "temp.tif")
 
         TiffImagePlugin.WRITE_LIBTIFF = True
@@ -503,20 +510,13 @@ class TestFileLibTiff(LibTiffTestCase):
             # colormap/palette tag
             assert len(reloaded.tag_v2[320]) == 768
 
-    def xtest_bw_compression_w_rgb(self, tmp_path):
-        """This test passes, but when running all tests causes a failure due
-        to output on stderr from the error thrown by libtiff. We need to
-        capture that but not now"""
-
+    @pytest.mark.parametrize("compression", ("tiff_ccitt", "group3", "group4"))
+    def test_bw_compression_w_rgb(self, compression, tmp_path):
         im = hopper("RGB")
         out = str(tmp_path / "temp.tif")
 
         with pytest.raises(OSError):
-            im.save(out, compression="tiff_ccitt")
-        with pytest.raises(OSError):
-            im.save(out, compression="group3")
-        with pytest.raises(OSError):
-            im.save(out, compression="group4")
+            im.save(out, compression=compression)
 
     def test_fp_leak(self):
         im = Image.open("Tests/images/hopper_g4_500.tif")
@@ -565,6 +565,17 @@ class TestFileLibTiff(LibTiffTestCase):
                 im.seek(0)
                 # Should not raise ValueError: I/O operation on closed file
                 im.load()
+
+        TiffImagePlugin.READ_LIBTIFF = False
+
+    def test_multipage_seek_backwards(self):
+        TiffImagePlugin.READ_LIBTIFF = True
+        with Image.open("Tests/images/multipage.tiff") as im:
+            im.seek(1)
+            im.load()
+
+            im.seek(0)
+            assert im.convert("RGB").getpixel((0, 0)) == (0, 128, 0)
 
         TiffImagePlugin.READ_LIBTIFF = False
 
@@ -639,8 +650,7 @@ class TestFileLibTiff(LibTiffTestCase):
             pilim.save(buffer_io, format="tiff", compression=compression)
             buffer_io.seek(0)
 
-            with Image.open(buffer_io) as pilim_load:
-                assert_image_similar(pilim, pilim_load, 0)
+            assert_image_similar_tofile(pilim, buffer_io, 0)
 
         save_bytesio()
         save_bytesio("raw")
@@ -649,6 +659,15 @@ class TestFileLibTiff(LibTiffTestCase):
 
         TiffImagePlugin.WRITE_LIBTIFF = False
         TiffImagePlugin.READ_LIBTIFF = False
+
+    def test_save_ycbcr(self, tmp_path):
+        im = hopper("YCbCr")
+        outfile = str(tmp_path / "temp.tif")
+        im.save(outfile, compression="jpeg")
+
+        with Image.open(outfile) as reloaded:
+            assert reloaded.tag_v2[530] == (1, 1)
+            assert reloaded.tag_v2[532] == (0, 255, 128, 255, 128, 255)
 
     def test_crashing_metadata(self, tmp_path):
         # issue 1597
@@ -796,6 +815,55 @@ class TestFileLibTiff(LibTiffTestCase):
 
             assert_image_equal_tofile(im, "Tests/images/copyleft.png", mode="RGB")
 
+    def test_sampleformat_write(self, tmp_path):
+        im = Image.new("F", (1, 1))
+        out = str(tmp_path / "temp.tif")
+        TiffImagePlugin.WRITE_LIBTIFF = True
+        im.save(out)
+        TiffImagePlugin.WRITE_LIBTIFF = False
+
+        with Image.open(out) as reloaded:
+            assert reloaded.mode == "F"
+            assert reloaded.getexif()[SAMPLEFORMAT] == 3
+
+    def test_lzma(self, capfd):
+        try:
+            with Image.open("Tests/images/hopper_lzma.tif") as im:
+                assert im.mode == "RGB"
+                assert im.size == (128, 128)
+                assert im.format == "TIFF"
+                im2 = hopper()
+                assert_image_similar(im, im2, 5)
+        except OSError:
+            captured = capfd.readouterr()
+            if "LZMA compression support is not configured" in captured.err:
+                pytest.skip("LZMA compression support is not configured")
+            sys.stdout.write(captured.out)
+            sys.stderr.write(captured.err)
+            raise
+
+    def test_webp(self, capfd):
+        try:
+            with Image.open("Tests/images/hopper_webp.tif") as im:
+                assert im.mode == "RGB"
+                assert im.size == (128, 128)
+                assert im.format == "TIFF"
+                assert_image_similar_tofile(im, "Tests/images/hopper_webp.png", 1)
+        except OSError:
+            captured = capfd.readouterr()
+            if "WEBP compression support is not configured" in captured.err:
+                pytest.skip("WEBP compression support is not configured")
+            if (
+                "Compression scheme 50001 strip decoding is not implemented"
+                in captured.err
+            ):
+                pytest.skip(
+                    "Compression scheme 50001 strip decoding is not implemented"
+                )
+            sys.stdout.write(captured.out)
+            sys.stderr.write(captured.err)
+            raise
+
     def test_lzw(self):
         with Image.open("Tests/images/hopper_lzw.tif") as im:
             assert im.mode == "RGB"
@@ -814,39 +882,108 @@ class TestFileLibTiff(LibTiffTestCase):
         with Image.open(infile) as im:
             assert_image_similar_tofile(im, "Tests/images/pil_sample_cmyk.jpg", 0.5)
 
-    @pytest.mark.xfail(is_big_endian(), reason="Fails on big-endian")
+    @mark_if_feature_version(
+        pytest.mark.valgrind_known_error, "libjpeg_turbo", "2.0", reason="Known Failing"
+    )
     def test_strip_ycbcr_jpeg_2x2_sampling(self):
         infile = "Tests/images/tiff_strip_ycbcr_jpeg_2x2_sampling.tif"
         with Image.open(infile) as im:
-            assert_image_similar_tofile(im, "Tests/images/flower.jpg", 0.5)
+            assert_image_similar_tofile(im, "Tests/images/flower.jpg", 1.2)
 
-    @pytest.mark.xfail(is_big_endian(), reason="Fails on big-endian")
+    @mark_if_feature_version(
+        pytest.mark.valgrind_known_error, "libjpeg_turbo", "2.0", reason="Known Failing"
+    )
     def test_strip_ycbcr_jpeg_1x1_sampling(self):
         infile = "Tests/images/tiff_strip_ycbcr_jpeg_1x1_sampling.tif"
         with Image.open(infile) as im:
-            assert_image_equal_tofile(im, "Tests/images/flower2.jpg")
+            assert_image_similar_tofile(im, "Tests/images/flower2.jpg", 0.01)
 
     def test_tiled_cmyk_jpeg(self):
         infile = "Tests/images/tiff_tiled_cmyk_jpeg.tif"
         with Image.open(infile) as im:
             assert_image_similar_tofile(im, "Tests/images/pil_sample_cmyk.jpg", 0.5)
 
-    @pytest.mark.xfail(is_big_endian(), reason="Fails on big-endian")
+    @mark_if_feature_version(
+        pytest.mark.valgrind_known_error, "libjpeg_turbo", "2.0", reason="Known Failing"
+    )
     def test_tiled_ycbcr_jpeg_1x1_sampling(self):
         infile = "Tests/images/tiff_tiled_ycbcr_jpeg_1x1_sampling.tif"
         with Image.open(infile) as im:
-            assert_image_equal_tofile(im, "Tests/images/flower2.jpg")
+            assert_image_similar_tofile(im, "Tests/images/flower2.jpg", 0.01)
 
-    @pytest.mark.xfail(is_big_endian(), reason="Fails on big-endian")
+    @mark_if_feature_version(
+        pytest.mark.valgrind_known_error, "libjpeg_turbo", "2.0", reason="Known Failing"
+    )
     def test_tiled_ycbcr_jpeg_2x2_sampling(self):
         infile = "Tests/images/tiff_tiled_ycbcr_jpeg_2x2_sampling.tif"
         with Image.open(infile) as im:
-            assert_image_similar_tofile(im, "Tests/images/flower.jpg", 0.5)
+            assert_image_similar_tofile(im, "Tests/images/flower.jpg", 1.5)
 
-    @pytest.mark.xfail(is_big_endian(), reason="Fails on big-endian")
-    def test_old_style_jpeg(self):
-        infile = "Tests/images/old-style-jpeg-compression.tif"
+    def test_strip_planar_rgb(self):
+        # gdal_translate -co TILED=no -co INTERLEAVE=BAND -co COMPRESS=LZW \
+        # tiff_strip_raw.tif tiff_strip_planar_lzw.tiff
+        infile = "Tests/images/tiff_strip_planar_lzw.tiff"
         with Image.open(infile) as im:
+            assert_image_equal_tofile(im, "Tests/images/tiff_adobe_deflate.png")
+
+    def test_tiled_planar_rgb(self):
+        # gdal_translate -co TILED=yes -co INTERLEAVE=BAND -co COMPRESS=LZW \
+        # tiff_tiled_raw.tif tiff_tiled_planar_lzw.tiff
+        infile = "Tests/images/tiff_tiled_planar_lzw.tiff"
+        with Image.open(infile) as im:
+            assert_image_equal_tofile(im, "Tests/images/tiff_adobe_deflate.png")
+
+    def test_tiled_planar_16bit_RGB(self):
+        # gdal_translate -co TILED=yes -co INTERLEAVE=BAND -co COMPRESS=LZW \
+        # tiff_16bit_RGB.tiff tiff_tiled_planar_16bit_RGB.tiff
+        with Image.open("Tests/images/tiff_tiled_planar_16bit_RGB.tiff") as im:
+            assert_image_equal_tofile(im, "Tests/images/tiff_16bit_RGB_target.png")
+
+    def test_strip_planar_16bit_RGB(self):
+        # gdal_translate -co TILED=no -co INTERLEAVE=BAND -co COMPRESS=LZW \
+        # tiff_16bit_RGB.tiff tiff_strip_planar_16bit_RGB.tiff
+        with Image.open("Tests/images/tiff_strip_planar_16bit_RGB.tiff") as im:
+            assert_image_equal_tofile(im, "Tests/images/tiff_16bit_RGB_target.png")
+
+    def test_tiled_planar_16bit_RGBa(self):
+        # gdal_translate -co TILED=yes \
+        # -co INTERLEAVE=BAND -co COMPRESS=LZW -co ALPHA=PREMULTIPLIED \
+        # tiff_16bit_RGBa.tiff tiff_tiled_planar_16bit_RGBa.tiff
+        with Image.open("Tests/images/tiff_tiled_planar_16bit_RGBa.tiff") as im:
+            assert_image_equal_tofile(im, "Tests/images/tiff_16bit_RGBa_target.png")
+
+    def test_strip_planar_16bit_RGBa(self):
+        # gdal_translate -co TILED=no \
+        # -co INTERLEAVE=BAND -co COMPRESS=LZW -co ALPHA=PREMULTIPLIED \
+        # tiff_16bit_RGBa.tiff tiff_strip_planar_16bit_RGBa.tiff
+        with Image.open("Tests/images/tiff_strip_planar_16bit_RGBa.tiff") as im:
+            assert_image_equal_tofile(im, "Tests/images/tiff_16bit_RGBa_target.png")
+
+    @pytest.mark.parametrize("compression", (None, "jpeg"))
+    def test_block_tile_tags(self, compression, tmp_path):
+        im = hopper()
+        out = str(tmp_path / "temp.tif")
+
+        tags = {
+            TiffImagePlugin.TILEWIDTH: 256,
+            TiffImagePlugin.TILELENGTH: 256,
+            TiffImagePlugin.TILEOFFSETS: 256,
+            TiffImagePlugin.TILEBYTECOUNTS: 256,
+        }
+        im.save(out, exif=tags, compression=compression)
+
+        with Image.open(out) as reloaded:
+            for tag in tags:
+                assert tag not in reloaded.getexif()
+
+    def test_old_style_jpeg(self):
+        with Image.open("Tests/images/old-style-jpeg-compression.tif") as im:
+            assert_image_equal_tofile(im, "Tests/images/old-style-jpeg-compression.png")
+
+    def test_open_missing_samplesperpixel(self):
+        with Image.open(
+            "Tests/images/old-style-jpeg-compression-no-samplesperpixel.tif"
+        ) as im:
             assert_image_equal_tofile(im, "Tests/images/old-style-jpeg-compression.png")
 
     def test_no_rows_per_strip(self):
@@ -864,6 +1001,7 @@ class TestFileLibTiff(LibTiffTestCase):
 
                     assert_image_similar(base_im, im, 0.7)
 
+    @pytest.mark.valgrind_known_error(reason="Backtrace in Python Core")
     def test_sampleformat_not_corrupted(self):
         # Assert that a TIFF image with SampleFormat=UINT tag is not corrupted
         # when saving to a new file.
@@ -894,3 +1032,38 @@ class TestFileLibTiff(LibTiffTestCase):
             # Assert that the error code is IMAGING_CODEC_MEMORY
             assert str(e.value) == "-9"
         TiffImagePlugin.READ_LIBTIFF = False
+
+    @pytest.mark.parametrize("compression", ("tiff_adobe_deflate", "jpeg"))
+    def test_save_multistrip(self, compression, tmp_path):
+        im = hopper("RGB").resize((256, 256))
+        out = str(tmp_path / "temp.tif")
+        im.save(out, compression=compression)
+
+        with Image.open(out) as im:
+            # Assert that there are multiple strips
+            assert len(im.tag_v2[STRIPOFFSETS]) > 1
+
+    @pytest.mark.parametrize("argument", (True, False))
+    def test_save_single_strip(self, argument, tmp_path):
+        im = hopper("RGB").resize((256, 256))
+        out = str(tmp_path / "temp.tif")
+
+        if not argument:
+            TiffImagePlugin.STRIP_SIZE = 2**18
+        try:
+            arguments = {"compression": "tiff_adobe_deflate"}
+            if argument:
+                arguments["strip_size"] = 2**18
+            im.save(out, **arguments)
+
+            with Image.open(out) as im:
+                assert len(im.tag_v2[STRIPOFFSETS]) == 1
+        finally:
+            TiffImagePlugin.STRIP_SIZE = 65536
+
+    @pytest.mark.parametrize("compression", ("tiff_adobe_deflate", None))
+    def test_save_zero(self, compression, tmp_path):
+        im = Image.new("RGB", (0, 0))
+        out = str(tmp_path / "temp.tif")
+        with pytest.raises(SystemError):
+            im.save(out, compression=compression)

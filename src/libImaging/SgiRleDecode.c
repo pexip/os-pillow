@@ -20,8 +20,8 @@
 #define RLE_COPY_FLAG 0x80
 #define RLE_MAX_RUN 0x7f
 
-static void read4B(UINT32* dest, UINT8* buf)
-{
+static void
+read4B(UINT32 *dest, UINT8 *buf) {
     *dest = (UINT32)((buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3]);
 }
 
@@ -60,8 +60,8 @@ static void read4B(UINT32* dest, UINT8* buf)
    all of the data in the scan line area of the image file be used
 
  */
-static int expandrow(UINT8* dest, UINT8* src, int n, int z, int xsize, UINT8* end_of_buffer)
-{
+static int
+expandrow(UINT8 *dest, UINT8 *src, int n, int z, int xsize, UINT8 *end_of_buffer) {
     /*
      * n here is the number of rlechunks
      * z is the number of channels, for calculating the interleave
@@ -73,8 +73,7 @@ static int expandrow(UINT8* dest, UINT8* src, int n, int z, int xsize, UINT8* en
     UINT8 pixel, count;
     int x = 0;
 
-    for (;n > 0; n--)
-    {
+    for (; n > 0; n--) {
         if (src > end_of_buffer) {
             return -1;
         }
@@ -94,13 +93,12 @@ static int expandrow(UINT8* dest, UINT8* src, int n, int z, int xsize, UINT8* en
             if (src + count > end_of_buffer) {
                 return -1;
             }
-            while(count--) {
+            while (count--) {
                 *dest = *src++;
                 dest += z;
             }
 
-        }
-        else {
+        } else {
             if (src > end_of_buffer) {
                 return -1;
             }
@@ -110,23 +108,21 @@ static int expandrow(UINT8* dest, UINT8* src, int n, int z, int xsize, UINT8* en
                 dest += z;
             }
         }
-
     }
     return 0;
 }
 
-static int expandrow2(UINT8* dest, const UINT8* src, int n, int z, int xsize, UINT8* end_of_buffer)
-{
+static int
+expandrow2(UINT8 *dest, const UINT8 *src, int n, int z, int xsize, UINT8 *end_of_buffer) {
     UINT8 pixel, count;
     int x = 0;
 
-    for (;n > 0; n--)
-    {
+    for (; n > 0; n--) {
         if (src + 1 > end_of_buffer) {
             return -1;
         }
         pixel = src[1];
-        src+=2;
+        src += 2;
         if (n == 1 && pixel != 0) {
             return n;
         }
@@ -142,13 +138,12 @@ static int expandrow2(UINT8* dest, const UINT8* src, int n, int z, int xsize, UI
             if (src + 2 * count > end_of_buffer) {
                 return -1;
             }
-            while(count--) {
+            while (count--) {
                 memcpy(dest, src, 2);
                 src += 2;
                 dest += z * 2;
             }
-        }
-        else {
+        } else {
             if (src + 2 > end_of_buffer) {
                 return -1;
             }
@@ -156,31 +151,27 @@ static int expandrow2(UINT8* dest, const UINT8* src, int n, int z, int xsize, UI
                 memcpy(dest, src, 2);
                 dest += z * 2;
             }
-            src+=2;
+            src += 2;
         }
     }
     return 0;
 }
 
-
 int
-ImagingSgiRleDecode(Imaging im, ImagingCodecState state,
-            UINT8* buf, Py_ssize_t bytes)
-{
+ImagingSgiRleDecode(Imaging im, ImagingCodecState state, UINT8 *buf, Py_ssize_t bytes) {
     UINT8 *ptr;
     SGISTATE *c;
     int err = 0;
     int status;
 
     /* size check */
-    if (im->xsize > INT_MAX / im->bands ||
-        im->ysize > INT_MAX / im->bands) {
+    if (im->xsize > INT_MAX / im->bands || im->ysize > INT_MAX / im->bands) {
         state->errcode = IMAGING_CODEC_MEMORY;
         return -1;
     }
 
     /* Get all data from File descriptor */
-    c = (SGISTATE*)state->context;
+    c = (SGISTATE *)state->context;
     _imaging_seek_pyFd(state->fd, 0L, SEEK_END);
     c->bufsize = _imaging_tell_pyFd(state->fd);
     c->bufsize -= SGI_HEADER_SIZE;
@@ -190,7 +181,7 @@ ImagingSgiRleDecode(Imaging im, ImagingCodecState state,
        each with 4 bytes per element of tablen
        Check here before we allocate any memory
     */
-    if (c->bufsize < 8*c->tablen) {
+    if (c->bufsize < 8 * c->tablen) {
         state->errcode = IMAGING_CODEC_OVERRUN;
         return -1;
     }
@@ -201,7 +192,7 @@ ImagingSgiRleDecode(Imaging im, ImagingCodecState state,
         return -1;
     }
     _imaging_seek_pyFd(state->fd, SGI_HEADER_SIZE, SEEK_SET);
-    if (_imaging_read_pyFd(state->fd, (char*)ptr, c->bufsize) != c->bufsize) {
+    if (_imaging_read_pyFd(state->fd, (char *)ptr, c->bufsize) != c->bufsize) {
         state->errcode = IMAGING_CODEC_UNKNOWN;
         return -1;
     }
@@ -223,26 +214,25 @@ ImagingSgiRleDecode(Imaging im, ImagingCodecState state,
     state->buffer = calloc(im->xsize * im->bands, sizeof(UINT8) * 2);
     c->starttab = calloc(c->tablen, sizeof(UINT32));
     c->lengthtab = calloc(c->tablen, sizeof(UINT32));
-    if (!state->buffer ||
-        !c->starttab ||
-        !c->lengthtab) {
+    if (!state->buffer || !c->starttab || !c->lengthtab) {
         err = IMAGING_CODEC_MEMORY;
         goto sgi_finish_decode;
     }
     /* populate offsets table */
-    for (c->tabindex = 0, c->bufindex = 0; c->tabindex < c->tablen; c->tabindex++, c->bufindex+=4) {
+    for (c->tabindex = 0, c->bufindex = 0; c->tabindex < c->tablen;
+         c->tabindex++, c->bufindex += 4) {
         read4B(&c->starttab[c->tabindex], &ptr[c->bufindex]);
     }
     /* populate lengths table */
-    for (c->tabindex = 0, c->bufindex = c->tablen * sizeof(UINT32); c->tabindex < c->tablen; c->tabindex++, c->bufindex+=4) {
+    for (c->tabindex = 0, c->bufindex = c->tablen * sizeof(UINT32);
+         c->tabindex < c->tablen;
+         c->tabindex++, c->bufindex += 4) {
         read4B(&c->lengthtab[c->tabindex], &ptr[c->bufindex]);
     }
 
     /* read compressed rows */
-    for (c->rowno = 0; c->rowno < im->ysize; c->rowno++, state->y += state->ystep)
-    {
-        for (c->channo = 0; c->channo < im->bands; c->channo++)
-        {
+    for (c->rowno = 0; c->rowno < im->ysize; c->rowno++, state->y += state->ystep) {
+        for (c->channo = 0; c->channo < im->bands; c->channo++) {
             c->rleoffset = c->starttab[c->rowno + c->channo * im->ysize];
             c->rlelength = c->lengthtab[c->rowno + c->channo * im->ysize];
 
@@ -255,11 +245,22 @@ ImagingSgiRleDecode(Imaging im, ImagingCodecState state,
             c->rleoffset -= SGI_HEADER_SIZE;
 
             /* row decompression */
-            if (c->bpc ==1) {
-                status = expandrow(&state->buffer[c->channo], &ptr[c->rleoffset], c->rlelength, im->bands, im->xsize, &ptr[c->bufsize-1]);
-            }
-            else {
-                status = expandrow2(&state->buffer[c->channo * 2], &ptr[c->rleoffset], c->rlelength, im->bands, im->xsize, &ptr[c->bufsize-1]);
+            if (c->bpc == 1) {
+                status = expandrow(
+                    &state->buffer[c->channo],
+                    &ptr[c->rleoffset],
+                    c->rlelength,
+                    im->bands,
+                    im->xsize,
+                    &ptr[c->bufsize-1]);
+            } else {
+                status = expandrow2(
+                    &state->buffer[c->channo * 2],
+                    &ptr[c->rleoffset],
+                    c->rlelength,
+                    im->bands,
+                    im->xsize,
+                    &ptr[c->bufsize-1]);
             }
             if (status == -1) {
                 state->errcode = IMAGING_CODEC_OVERRUN;
@@ -271,17 +272,16 @@ ImagingSgiRleDecode(Imaging im, ImagingCodecState state,
         }
 
         /* store decompressed data in image */
-        state->shuffle((UINT8*)im->image[state->y], state->buffer, im->xsize);
-
+        state->shuffle((UINT8 *)im->image[state->y], state->buffer, im->xsize);
     }
 
-sgi_finish_decode: ;
+sgi_finish_decode:;
 
     free(c->starttab);
     free(c->lengthtab);
     free(ptr);
-    if (err != 0){
-        state->errcode=err;
+    if (err != 0) {
+        state->errcode = err;
         return -1;
     }
     return 0;

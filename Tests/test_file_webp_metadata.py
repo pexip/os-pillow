@@ -1,13 +1,20 @@
 from io import BytesIO
 
+import pytest
+
 from PIL import Image
 
-from .helper import skip_unless_feature
+from .helper import mark_if_feature_version, skip_unless_feature
 
 pytestmark = [
     skip_unless_feature("webp"),
     skip_unless_feature("webp_mux"),
 ]
+
+try:
+    from defusedxml import ElementTree
+except ImportError:
+    ElementTree = None
 
 
 def test_read_exif_metadata():
@@ -39,6 +46,9 @@ def test_read_exif_metadata_without_prefix():
         assert exif[305] == "Adobe Photoshop CS6 (Macintosh)"
 
 
+@mark_if_feature_version(
+    pytest.mark.valgrind_known_error, "libjpeg_turbo", "2.0", reason="Known Failing"
+)
 def test_write_exif_metadata():
     file_path = "Tests/images/flower.jpg"
     test_buffer = BytesIO()
@@ -50,9 +60,7 @@ def test_write_exif_metadata():
     test_buffer.seek(0)
     with Image.open(test_buffer) as webp_image:
         webp_exif = webp_image.info.get("exif", None)
-    assert webp_exif
-    if webp_exif:
-        assert webp_exif == expected_exif, "WebP EXIF didn't match"
+    assert webp_exif == expected_exif[6:], "WebP EXIF didn't match"
 
 
 def test_read_icc_profile():
@@ -71,6 +79,9 @@ def test_read_icc_profile():
             assert icc == expected_icc
 
 
+@mark_if_feature_version(
+    pytest.mark.valgrind_known_error, "libjpeg_turbo", "2.0", reason="Known Failing"
+)
 def test_write_icc_metadata():
     file_path = "Tests/images/flower2.jpg"
     test_buffer = BytesIO()
@@ -88,6 +99,9 @@ def test_write_icc_metadata():
         assert webp_icc_profile == expected_icc_profile, "Webp ICC didn't match"
 
 
+@mark_if_feature_version(
+    pytest.mark.valgrind_known_error, "libjpeg_turbo", "2.0", reason="Known Failing"
+)
 def test_read_no_exif():
     file_path = "Tests/images/flower.jpg"
     test_buffer = BytesIO()
@@ -99,6 +113,22 @@ def test_read_no_exif():
     test_buffer.seek(0)
     with Image.open(test_buffer) as webp_image:
         assert not webp_image._getexif()
+
+
+def test_getxmp():
+    with Image.open("Tests/images/flower.webp") as im:
+        assert "xmp" not in im.info
+        assert im.getxmp() == {}
+
+    with Image.open("Tests/images/flower2.webp") as im:
+        if ElementTree is None:
+            with pytest.warns(UserWarning):
+                assert im.getxmp() == {}
+        else:
+            assert (
+                im.getxmp()["xmpmeta"]["xmptk"]
+                == "Adobe XMP Core 5.3-c011 66.145661, 2012/02/06-14:56:27        "
+            )
 
 
 @skip_unless_feature("webp_anim")

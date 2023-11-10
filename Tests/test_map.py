@@ -4,10 +4,6 @@ import pytest
 
 from PIL import Image
 
-from .helper import is_win32
-
-pytestmark = pytest.mark.skipif(is_win32(), reason="Win32 does not call map_buffer")
-
 
 def test_overflow():
     # There is the potential to overflow comparisons in map.c
@@ -27,7 +23,20 @@ def test_overflow():
     Image.MAX_IMAGE_PIXELS = max_pixels
 
 
-@pytest.mark.skipif(sys.maxsize <= 2 ** 32, reason="Requires 64-bit system")
+def test_tobytes():
+    # Note that this image triggers the decompression bomb warning:
+    max_pixels = Image.MAX_IMAGE_PIXELS
+    Image.MAX_IMAGE_PIXELS = None
+
+    # Previously raised an access violation on Windows
+    with Image.open("Tests/images/l2rgb_read.bmp") as im:
+        with pytest.raises((ValueError, MemoryError, OSError)):
+            im.tobytes()
+
+    Image.MAX_IMAGE_PIXELS = max_pixels
+
+
+@pytest.mark.skipif(sys.maxsize <= 2**32, reason="Requires 64-bit system")
 def test_ysize():
     numpy = pytest.importorskip("numpy", reason="NumPy not installed")
 
