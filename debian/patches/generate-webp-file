@@ -1,6 +1,6 @@
 --- a/Tests/test_file_webp.py
 +++ b/Tests/test_file_webp.py
-@@ -12,6 +12,8 @@ from .helper import (
+@@ -13,6 +13,8 @@ from .helper import (
      skip_unless_feature,
  )
  
@@ -9,7 +9,7 @@
  try:
      from PIL import _webp
  
-@@ -57,7 +59,11 @@ class TestFileWebp:
+@@ -58,7 +60,11 @@ class TestFileWebp:
  
              # generated with:
              # dwebp -ppm ../../Tests/images/hopper.webp -o hopper_webp_bits.ppm

@@ -1,10 +1,13 @@
 import os.path
 
+import pytest
+
 from PIL import Image, ImageDraw, ImageDraw2
 
 from .helper import (
     assert_image_equal,
-    assert_image_similar,
+    assert_image_equal_tofile,
+    assert_image_similar_tofile,
     hopper,
     skip_unless_feature,
 )
@@ -49,27 +52,19 @@ def test_sanity():
     draw.line(list(range(10)), pen)
 
 
-def helper_ellipse(mode, bbox):
+@pytest.mark.parametrize("bbox", (BBOX1, BBOX2))
+def test_ellipse(bbox):
     # Arrange
     im = Image.new("RGB", (W, H))
     draw = ImageDraw2.Draw(im)
     pen = ImageDraw2.Pen("blue", width=2)
     brush = ImageDraw2.Brush("green")
-    expected = f"Tests/images/imagedraw_ellipse_{mode}.png"
 
     # Act
     draw.ellipse(bbox, pen, brush)
 
     # Assert
-    assert_image_similar(im, Image.open(expected), 1)
-
-
-def test_ellipse1():
-    helper_ellipse("RGB", BBOX1)
-
-
-def test_ellipse2():
-    helper_ellipse("RGB", BBOX2)
+    assert_image_similar_tofile(im, "Tests/images/imagedraw_ellipse_RGB.png", 1)
 
 
 def test_ellipse_edge():
@@ -82,10 +77,11 @@ def test_ellipse_edge():
     draw.ellipse(((0, 0), (W - 1, H - 1)), brush)
 
     # Assert
-    assert_image_similar(im, Image.open("Tests/images/imagedraw_ellipse_edge.png"), 1)
+    assert_image_similar_tofile(im, "Tests/images/imagedraw_ellipse_edge.png", 1)
 
 
-def helper_line(points):
+@pytest.mark.parametrize("points", (POINTS1, POINTS2))
+def test_line(points):
     # Arrange
     im = Image.new("RGB", (W, H))
     draw = ImageDraw2.Draw(im)
@@ -95,15 +91,7 @@ def helper_line(points):
     draw.line(points, pen)
 
     # Assert
-    assert_image_equal(im, Image.open("Tests/images/imagedraw_line.png"))
-
-
-def test_line1_pen():
-    helper_line(POINTS1)
-
-
-def test_line2_pen():
-    helper_line(POINTS2)
+    assert_image_equal_tofile(im, "Tests/images/imagedraw_line.png")
 
 
 def test_line_pen_as_brush():
@@ -118,10 +106,11 @@ def test_line_pen_as_brush():
     draw.line(POINTS1, pen, brush)
 
     # Assert
-    assert_image_equal(im, Image.open("Tests/images/imagedraw_line.png"))
+    assert_image_equal_tofile(im, "Tests/images/imagedraw_line.png")
 
 
-def helper_polygon(points):
+@pytest.mark.parametrize("points", (POINTS1, POINTS2))
+def test_polygon(points):
     # Arrange
     im = Image.new("RGB", (W, H))
     draw = ImageDraw2.Draw(im)
@@ -132,18 +121,11 @@ def helper_polygon(points):
     draw.polygon(points, pen, brush)
 
     # Assert
-    assert_image_equal(im, Image.open("Tests/images/imagedraw_polygon.png"))
+    assert_image_equal_tofile(im, "Tests/images/imagedraw_polygon.png")
 
 
-def test_polygon1():
-    helper_polygon(POINTS1)
-
-
-def test_polygon2():
-    helper_polygon(POINTS2)
-
-
-def helper_rectangle(bbox):
+@pytest.mark.parametrize("bbox", (BBOX1, BBOX2))
+def test_rectangle(bbox):
     # Arrange
     im = Image.new("RGB", (W, H))
     draw = ImageDraw2.Draw(im)
@@ -154,15 +136,7 @@ def helper_rectangle(bbox):
     draw.rectangle(bbox, pen, brush)
 
     # Assert
-    assert_image_equal(im, Image.open("Tests/images/imagedraw_rectangle.png"))
-
-
-def test_rectangle1():
-    helper_rectangle(BBOX1)
-
-
-def test_rectangle2():
-    helper_rectangle(BBOX2)
+    assert_image_equal_tofile(im, "Tests/images/imagedraw_rectangle.png")
 
 
 def test_big_rectangle():
@@ -178,7 +152,7 @@ def test_big_rectangle():
     draw.rectangle(bbox, brush)
 
     # Assert
-    assert_image_similar(im, Image.open(expected), 1)
+    assert_image_similar_tofile(im, expected, 1)
 
 
 @skip_unless_feature("freetype2")
@@ -193,7 +167,7 @@ def test_text():
     draw.text((5, 5), "ImageDraw2", font)
 
     # Assert
-    assert_image_similar(im, Image.open(expected), 13)
+    assert_image_similar_tofile(im, expected, 13)
 
 
 @skip_unless_feature("freetype2")
@@ -204,7 +178,9 @@ def test_textsize():
     font = ImageDraw2.Font("white", FONT_PATH)
 
     # Act
-    size = draw.textsize("ImageDraw2", font)
+    with pytest.warns(DeprecationWarning) as log:
+        size = draw.textsize("ImageDraw2", font)
+    assert len(log) == 1
 
     # Assert
     assert size[1] == 12
@@ -220,9 +196,10 @@ def test_textsize_empty_string():
     # Act
     # Should not cause 'SystemError: <built-in method getsize of
     # ImagingFont object at 0x...> returned NULL without setting an error'
-    draw.textsize("", font)
-    draw.textsize("\n", font)
-    draw.textsize("test\n", font)
+    draw.textbbox((0, 0), "", font)
+    draw.textbbox((0, 0), "\n", font)
+    draw.textbbox((0, 0), "test\n", font)
+    draw.textlength("", font)
 
 
 @skip_unless_feature("freetype2")

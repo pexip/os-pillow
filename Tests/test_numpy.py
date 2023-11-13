@@ -1,3 +1,5 @@
+import warnings
+
 import pytest
 
 from PIL import Image
@@ -31,8 +33,8 @@ def test_numpy_to_image():
         return i
 
     # Check supported 1-bit integer formats
-    assert_image(to_image(numpy.bool, 1, 1), "1", TEST_IMAGE_SIZE)
-    assert_image(to_image(numpy.bool8, 1, 1), "1", TEST_IMAGE_SIZE)
+    assert_image(to_image(bool, 1, 1), "1", TEST_IMAGE_SIZE)
+    assert_image(to_image(numpy.bool_, 1, 1), "1", TEST_IMAGE_SIZE)
 
     # Check supported 8-bit integer formats
     assert_image(to_image(numpy.uint8), "L", TEST_IMAGE_SIZE)
@@ -65,7 +67,7 @@ def test_numpy_to_image():
         to_image(numpy.int64)
 
     # Check floating-point formats
-    assert_image(to_image(numpy.float), "F", TEST_IMAGE_SIZE)
+    assert_image(to_image(float), "F", TEST_IMAGE_SIZE)
     with pytest.raises(TypeError):
         to_image(numpy.float16)
     assert_image(to_image(numpy.float32), "F", TEST_IMAGE_SIZE)
@@ -135,19 +137,9 @@ def test_save_tiff_uint16():
     assert img_px[0, 0] == pixel_value
 
 
-def test_to_array():
-    def _to_array(mode, dtype):
-        img = hopper(mode)
-
-        # Resize to non-square
-        img = img.crop((3, 0, 124, 127))
-        assert img.size == (121, 127)
-
-        np_img = numpy.array(img)
-        _test_img_equals_nparray(img, np_img)
-        assert np_img.dtype == dtype
-
-    modes = [
+@pytest.mark.parametrize(
+    "mode, dtype",
+    (
         ("L", numpy.uint8),
         ("I", numpy.int32),
         ("F", numpy.float32),
@@ -161,10 +153,18 @@ def test_to_array():
         ("I;16B", ">u2"),
         ("I;16L", "<u2"),
         ("HSV", numpy.uint8),
-    ]
+    ),
+)
+def test_to_array(mode, dtype):
+    img = hopper(mode)
 
-    for mode in modes:
-        _to_array(*mode)
+    # Resize to non-square
+    img = img.crop((3, 0, 124, 127))
+    assert img.size == (121, 127)
+
+    np_img = numpy.array(img)
+    _test_img_equals_nparray(img, np_img)
+    assert np_img.dtype == dtype
 
 
 def test_point_lut():
@@ -189,22 +189,25 @@ def test_putdata():
     assert len(im.getdata()) == len(arr)
 
 
-def test_roundtrip_eye():
-    for dtype in (
-        numpy.bool,
-        numpy.bool8,
+@pytest.mark.parametrize(
+    "dtype",
+    (
+        bool,
+        numpy.bool_,
         numpy.int8,
         numpy.int16,
         numpy.int32,
         numpy.uint8,
         numpy.uint16,
         numpy.uint32,
-        numpy.float,
+        float,
         numpy.float32,
         numpy.float64,
-    ):
-        arr = numpy.eye(10, dtype=dtype)
-        numpy.testing.assert_array_equal(arr, numpy.array(Image.fromarray(arr)))
+    ),
+)
+def test_roundtrip_eye(dtype):
+    arr = numpy.eye(10, dtype=dtype)
+    numpy.testing.assert_array_equal(arr, numpy.array(Image.fromarray(arr)))
 
 
 def test_zero_size():
@@ -218,7 +221,7 @@ def test_zero_size():
 
 def test_bool():
     # https://github.com/python-pillow/Pillow/issues/2044
-    a = numpy.zeros((10, 2), dtype=numpy.bool)
+    a = numpy.zeros((10, 2), dtype=bool)
     a[0][0] = True
 
     im2 = Image.fromarray(a)
@@ -234,4 +237,5 @@ def test_no_resource_warning_for_numpy_array():
     with Image.open(test_file) as im:
 
         # Act/Assert
-        pytest.warns(None, lambda: array(im))
+        with warnings.catch_warnings():
+            array(im)

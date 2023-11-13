@@ -2,7 +2,12 @@ import pytest
 
 from PIL import Image
 
-from .helper import assert_image_equal, assert_image_similar, hopper
+from .helper import (
+    assert_image_equal,
+    assert_image_similar,
+    assert_image_similar_tofile,
+    hopper,
+)
 
 _webp = pytest.importorskip("PIL._webp", reason="WebP support not installed")
 
@@ -29,8 +34,7 @@ def test_read_rgba():
 
         image.tobytes()
 
-        with Image.open("Tests/images/transparent.png") as target:
-            assert_image_similar(image, target, 20.0)
+        assert_image_similar_tofile(image, "Tests/images/transparent.png", 20.0)
 
 
 def test_write_lossless_rgb(tmp_path):
@@ -91,6 +95,35 @@ def test_write_rgba(tmp_path):
             assert_image_similar(image, pil_image, 3.0)
         else:
             assert_image_similar(image, pil_image, 1.0)
+
+
+def test_keep_rgb_values_when_transparent(tmp_path):
+    """
+    Saving transparent pixels should retain their original RGB values
+    when using the "exact" parameter.
+    """
+
+    image = hopper("RGB")
+
+    # create a copy of the image
+    # with the left half transparent
+    half_transparent_image = image.copy()
+    new_alpha = Image.new("L", (128, 128), 255)
+    new_alpha.paste(0, (0, 0, 64, 128))
+    half_transparent_image.putalpha(new_alpha)
+
+    # save with transparent area preserved
+    temp_file = str(tmp_path / "temp.webp")
+    half_transparent_image.save(temp_file, exact=True, lossless=True)
+
+    with Image.open(temp_file) as reloaded:
+        assert reloaded.mode == "RGBA"
+        assert reloaded.format == "WEBP"
+
+        # even though it is lossless, if we don't use exact=True
+        # in libwebp >= 0.5, the transparent area will be filled with black
+        # (or something more conducive to compression)
+        assert_image_equal(reloaded.convert("RGB"), image)
 
 
 def test_write_unsupported_mode_PA(tmp_path):

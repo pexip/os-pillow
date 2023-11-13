@@ -4,7 +4,7 @@
 #export DH_VERBOSE=1
 
 PY3VERS	:= $(shell py3versions -vr)
-PY3VER   := $(shell python3 -c 'import sys; print(sys.version[:3])')
+PY3VER	:= $(shell python3 -c 'import re, sys;print(re.match("^\d*\.\d*", sys.version).group())')
 
 include /usr/share/python3/python.mk
 
@@ -16,25 +16,21 @@ ifneq ($(DEB_BUILD_MULTIARCH),$(DEB_HOST_MULTIARCH))
   SET_CROSS_ENV += _PYTHON_HOST_PLATFORM=$(DEB_HOST_GNU_CPU)
 endif
 
-build-arch: BBB=bbb
-build-indep: III=iii
+build-arch:
+build-indep:
 build-arch: build
 build-indep: build build-doc-stamp
 build: build-stamp
 
 build-doc-stamp: build
-	echo XXXXXXXXXXXX BBB=$(BBB) / III=$(III)
-	-PYTHONPATH=$(CURDIR)/$(wildcard build/lib.*-$(PY3VER)) $(MAKE) -C docs html
+	-PYTHONPATH=$(CURDIR)/$(firstword $(wildcard build/lib.*)) $(MAKE) -C docs html
 	touch $@
 
 build-stamp: $(PY3VERS:%=build-stamp-python%) $(PY3VERS:%=check-stamp-python%)
 	touch $@
 build-stamp-python%:
-	echo XXXXXXXXXXXX BBB=$(BBB) / III=$(III)
 #	tar xvf debian/lcms-images.tar.gz
-	$(SET_CROSS_ENV) python$* setup.py build_ext --disable-tiff --disable-webp --disable-webpmux
-
-	$(SET_CROSS_ENV) python$*-dbg setup.py build_ext --disable-tiff --disable-webp --disable-webpmux
+	$(SET_CROSS_ENV) python$* setup.py build --disable-tiff --disable-webp --disable-webpmux
 	touch $@
 
 pillow_tests = $(wildcard Tests/test*.py)
@@ -42,15 +38,10 @@ pillow_tests = $(wildcard Tests/test*.py)
 check-stamp-python%:
 ifeq (0,1)
 ifeq ($(DEB_BUILD_MULTIARCH),$(DEB_HOST_MULTIARCH))
-	: # run the tests for the debug interpreter, but continue in case of error
 	rm -rf tmp
 	mkdir -p tmp
 	ln -s ../Tests tmp/Tests
 	ln -s ../build tmp/build
-ifeq (0,1)
-	@echo BEGIN python$*-dbg tests
-	-cd tmp && python$*-dbg ../debian/test-built.py --processes=1 --process-timeout=90 $(pillow_tests)
-endif
 	@echo BEGIN python$* tests
 	-cd tmp && python$* ../debian/test-built.py --processes=1 --process-timeout=90 $(pillow_tests)
 endif
@@ -126,36 +117,9 @@ install3-python%:
 		usr/lib/python3/$(call py_sitename_sh, $*)/PIL/_imagingtk$$abitag.so \
 		usr/lib/python3/$(call py_sitename_sh, $*)/PIL/ImageTk.py
 
-	$(SET_CROSS_ENV) python$*-dbg setup.py install \
-		--root $(CURDIR)/debian/python3-pil-dbg \
-		$(py_setup_install_args)
-
-	incname=$$(basename $$(python$* -c 'import sysconfig; print(sysconfig.get_path("include"))')); \
-	incddir=$$(python$*-dbg -c 'import sysconfig; print(sysconfig.get_path("include"))'); \
-	mkdir -p debian/python3-pil-dbg/$$incddir; \
-	for i in Imaging.h ImagingUtils.h ImPlatform.h ImDib.h; do \
-	  ln -sf ../$$incname/$$i \
-	    debian/python3-pil-dbg/$$incddir/$$i; \
-	done
-
-	find debian/python3-pil*-dbg \
-		! -type d ! \( -name '*.so' -o -name '*.h' \) | xargs rm -f
-	find debian/python3-pil*-dbg -depth -empty -exec rmdir {} \;
-
-	if `python$* -c "import sys; sys.exit(sys.version_info < (3,5))"`; \
-	then \
-		abitag=.$$(python$*-dbg -c "import sysconfig; print(sysconfig.get_config_var('SOABI'))"); \
-	else \
-		abitag=.$$(python$*-dbg -c "import sysconfig; print(sysconfig.get_config_var('SOABI'))")-$(DEB_HOST_MULTIARCH); \
-	fi; \
-	dh_movefiles -ppython3-pil.imagetk-dbg \
-	    --sourcedir=debian/python3-pil-dbg \
-		usr/lib/python3/$(call py_sitename_sh, $*)/PIL/_imagingtk$$abitag.so
-
 # Build architecture-independent files here.
 # Pass -i to all debhelper commands in this target to reduce clutter.
 binary-indep: build build-doc-stamp install
-	echo XXXXXXXXXXXX BBB=$(BBB) / III=$(III)
 	dh_testdir -i
 	dh_testroot -i
 	dh_installdocs -i
@@ -163,7 +127,7 @@ binary-indep: build build-doc-stamp install
 	dh_sphinxdoc -ppython-pil-doc
 	dh_installexamples -i
 	dh_installchangelogs -i CHANGES.rst
-	dh_python2 -i
+	dh_python3 -i
 	dh_link -i
 	dh_compress -i -X.py
 	dh_fixperms -i
@@ -174,21 +138,13 @@ binary-indep: build build-doc-stamp install
 
 # Build architecture-dependent files here.
 binary-arch: build install
-	echo XXXXXXXXXXXX BBB=$(BBB) / III=$(III)
 	dh_testdir -a
 	dh_testroot -a
 	dh_installdocs -a
 	dh_installexamples -a
 	dh_installchangelogs -a CHANGES.rst
-	for p in \
-	  python3-pil python3-pil.imagetk; \
-	do \
-	  rm -rf debian/$$p-dbg/usr/share/doc/$$p-dbg; \
-	  ln -s $$p debian/$$p-dbg/usr/share/doc/$$p-dbg; \
-	done
 	dh_python3 -a
-	dh_strip -ppython3-pil --dbg-package=python3-pil-dbg
-	dh_strip -ppython3-pil.imagetk --dbg-package=python3-pil.imagetk-dbg
+	dh_strip -a
 	dh_link -a
 	dh_compress -a -X.py
 	dh_fixperms -a
