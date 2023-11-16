@@ -1,3 +1,9 @@
+pillow (9.4.0-1.1pexip1) pexip-bookworm; urgency=medium
+
+  * Initial bookworm build
+
+ -- Mark Hymers <mark.hymers@pexip.com>  Thu, 16 Nov 2023 10:19:21 +0000
+
 pillow (9.4.0-1.1) unstable; urgency=medium
 
   * Non-maintainer upload.
