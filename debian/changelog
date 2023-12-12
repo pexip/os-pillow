@@ -1,3 +1,9 @@
+pillow (9.4.0-1.1+b1pexip1) pexip-bookworm; urgency=medium
+
+  * Bump version to supercede Debian point release binNMU.
+
+ -- Mark Hymers <mark.hymers@pexip.com>  Tue, 12 Dec 2023 12:45:49 +0000
+
 pillow (9.4.0-1.1pexip2) pexip-bookworm; urgency=medium
 
   * Bookworm build for product distribution
