@@ -1,3 +1,9 @@
+pillow (9.4.0-1.1+b1pexip2) pexip-bookworm; urgency=medium
+
+  * Disable openjpeg B-D (JPEG2000 support is not in previous Pexip builds)
+
+ -- Mark Hymers <mark.hymers@pexip.com>  Tue, 19 Dec 2023 17:24:54 +0000
+
 pillow (9.4.0-1.1+b1pexip1) pexip-bookworm; urgency=medium
 
   * Bump version to supercede Debian point release binNMU.
