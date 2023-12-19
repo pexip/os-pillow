@@ -1,6 +1,7 @@
 pillow (9.4.0-1.1+b1pexip2) pexip-bookworm; urgency=medium
 
   * Disable openjpeg B-D (JPEG2000 support is not in previous Pexip builds)
+  * Disable python-olefile as we do not need OLE file support.
 
  -- Mark Hymers <mark.hymers@pexip.com>  Tue, 19 Dec 2023 17:24:54 +0000
 
