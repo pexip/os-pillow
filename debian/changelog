@@ -1,3 +1,9 @@
+pillow (9.4.0-1.1+b1+pexip24u3) pexip-bookworm; urgency=medium
+
+  * New versioning scheme
+
+ -- Mark Hymers <mark.hymers@pexip.com>  Thu, 01 Feb 2024 16:16:21 +0000
+
 pillow (9.4.0-1.1+b1pexip2) pexip-bookworm; urgency=medium
 
   * Disable openjpeg B-D (JPEG2000 support is not in previous Pexip builds)
