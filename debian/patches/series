@@ -5,3 +5,4 @@ no-sphinx-removed-in.diff
 no-sphinx-opengraph.diff
 no-sphinx-furo.diff
 pkg-config-multiarch.diff
+CVE-2024-28219.patch

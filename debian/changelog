@@ -1,3 +1,10 @@
+pillow (9.4.0-1.1+b1+pexip24u4) bookworm; urgency=medium
+
+  * Merge fix for CVE-2024-28219 from upstream:
+    Use strncpy to avoid buffer overflow
+
+ -- Steve McIntyre <steve.mcintyre@pexip.com>  Fri, 26 Apr 2024 15:26:48 +0100
+
 pillow (9.4.0-1.1+b1+pexip24u3) pexip-bookworm; urgency=medium
 
   * New versioning scheme
