@@ -1,4 +1,4 @@
-pillow (9.4.0-1.1+b1+pexip24u4) bookworm; urgency=medium
+pillow (9.4.0-1.1+b1+pexip24u4) pexip; urgency=medium
 
   * Merge fix for CVE-2024-28219 from upstream:
     Use strncpy to avoid buffer overflow
