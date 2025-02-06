@@ -58,5 +58,14 @@ PyInit__imagingtk(void) {
     };
     PyObject *m;
     m = PyModule_Create(&module_def);
-    return (load_tkinter_funcs() == 0) ? m : NULL;
+    if (load_tkinter_funcs() != 0) {
+        Py_DECREF(m);
+        return NULL;
+    }
+
+#ifdef Py_GIL_DISABLED
+    PyUnstable_Module_SetGIL(m, Py_MOD_GIL_NOT_USED);
+#endif
+
+    return m;
 }

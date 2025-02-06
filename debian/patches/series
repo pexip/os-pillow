@@ -1,7 +1,7 @@
 toplevel-setup.py
 generate-webp-file
 js-script-file.diff
-no-sphinx-removed-in.diff
-no-sphinx-opengraph.diff
-no-sphinx-furo.diff
-pkg-config-multiarch.diff
+no-sphinx-from-pip.diff
+no-sphinx-dater.diff
+no-sphinx-fail-on-warning.diff
+intersphinx-local.diff
