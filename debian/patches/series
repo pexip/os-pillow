@@ -1,12 +1,7 @@
 toplevel-setup.py
 generate-webp-file
 js-script-file.diff
-no-sphinx-removed-in.diff
-no-sphinx-opengraph.diff
-no-sphinx-furo.diff
-pkg-config-multiarch.diff
-CVE-2023-50447-1.patch
-CVE-2023-50447-2.patch
-CVE-2023-50447-3.patch
-CVE-2024-28219.patch
-CVE-2023-44271.patch
+no-sphinx-from-pip.diff
+no-sphinx-dater.diff
+no-sphinx-fail-on-warning.diff
+intersphinx-local.diff
