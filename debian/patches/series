@@ -5,3 +5,4 @@ no-sphinx-from-pip.diff
 no-sphinx-dater.diff
 no-sphinx-fail-on-warning.diff
 intersphinx-local.diff
+CVE-2026-25990.patch
