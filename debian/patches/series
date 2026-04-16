@@ -6,3 +6,4 @@ no-sphinx-dater.diff
 no-sphinx-fail-on-warning.diff
 intersphinx-local.diff
 CVE-2026-25990.patch
+CVE-2026-40192.patch
