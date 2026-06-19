@@ -1,3 +1,11 @@
+pillow (11.1.0-5+deb13u3) trixie-security; urgency=medium
+
+  * CVE-2026-42308
+  * CVE-2026-42310
+  * CVE-2026-42311
+
+ -- Moritz Mühlenhoff <jmm@debian.org>  Fri, 19 Jun 2026 20:11:46 +0200
+
 pillow (11.1.0-5+deb13u2) trixie-security; urgency=medium
 
   * CVE-2026-40192
