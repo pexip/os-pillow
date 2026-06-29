@@ -1,3 +1,17 @@
+pillow (11.1.0-5+pexip25u5+deb13u3) pexip-trixie; urgency=medium
+
+  * New upstream release with security fixes
+
+ -- Steve McIntyre <steve.mcintyre@pexip.com>  Mon, 29 Jun 2026 09:16:45 +0100
+
+pillow (11.1.0-5+deb13u3) trixie-security; urgency=medium
+
+  * CVE-2026-42308
+  * CVE-2026-42310
+  * CVE-2026-42311
+
+ -- Moritz Mühlenhoff <jmm@debian.org>  Fri, 19 Jun 2026 20:11:46 +0200
+
 pillow (11.1.0-5+pexip25u4+deb13u2) pexip-trixie; urgency=medium
 
   * New upstream release with security fix
