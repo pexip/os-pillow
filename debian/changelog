@@ -1,3 +1,9 @@
+pillow (11.1.0-5+pexip25u6+deb13u4) pexip-trixie; urgency=medium
+
+  * New upstream release with security fixes
+
+ -- Huw Jones <huw@pexip.com>  Fri, 17 Jul 2026 16:59:23 +0100
+
 pillow (11.1.0-5+deb13u4) trixie; urgency=medium
 
   * Followup fix for CVE-2026-42310 (Closes: #1141330)
