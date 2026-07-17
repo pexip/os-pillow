@@ -1,3 +1,9 @@
+pillow (11.1.0-5+deb13u4) trixie; urgency=medium
+
+  * Followup fix for CVE-2026-42310 (Closes: #1141330)
+
+ -- Moritz Mühlenhoff <jmm@debian.org>  Fri, 03 Jul 2026 22:03:44 +0200
+
 pillow (11.1.0-5+pexip25u5+deb13u3) pexip-trixie; urgency=medium
 
   * New upstream release with security fixes
